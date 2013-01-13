@@ -1,8 +1,6 @@
 from __future__ import absolute_import
 
-from ctypes import pointer, string_at
-
-from . import gssapi_h
+from ctypes import byref, string_at
 
 from .gssapi_h import (
     GSS_C_GSS_CODE, GSS_C_MECH_CODE, GSS_C_NO_OID,
@@ -10,14 +8,6 @@ from .gssapi_h import (
     OM_uint32, gss_buffer_desc,
     gss_display_status, gss_release_buffer
 )
-
-gssapi_h.struct_gss_name_struct._pack_ = 2
-gssapi_h.struct_gss_cred_id_struct._pack_ = 2
-gssapi_h.struct_gss_ctx_id_struct._pack_ = 2
-gssapi_h.struct_gss_OID_desc_struct._pack_ = 2
-gssapi_h.struct_gss_OID_set_desc_struct._pack_ = 2
-gssapi_h.struct_gss_buffer_desc_struct._pack_ = 2
-gssapi_h.struct_gss_channel_bindings_struct._pack_ = 2
 
 
 def buf_to_str(buf):
@@ -37,19 +27,19 @@ def status_list(maj_status, min_status, status_type=GSS_C_GSS_CODE, mech_type=GS
 
         try:
             retval = gss_display_status(
-                pointer(minor_status),
+                byref(minor_status),
                 maj_status_c,
                 status_type,
                 mech_type,
-                pointer(message_context),
-                pointer(status_buf)
+                byref(message_context),
+                byref(status_buf)
             )
             if retval != GSS_S_COMPLETE:
                 raise GSSException(retval, minor_status)
 
             statuses.append(string_at(status_buf.value, status_buf.length))
         finally:
-            gss_release_buffer(pointer(minor_status), pointer(status_buf))
+            gss_release_buffer(byref(minor_status), byref(status_buf))
 
         if message_context.value == 0:
             break
