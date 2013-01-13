@@ -49,3 +49,13 @@ class Name(object):
 
     def __del__(self):
         self.release()
+
+
+class MechName(Name):
+    """Represents a GSSAPI Mechanism Name (MN) as obtained by
+    (e.g.)gss_canonicalize_name or gss_accept_sec_context."""
+
+    def __init__(self, name, mech_type):
+        super(MechName, self).__init__()
+        self.arg = arg
+        
