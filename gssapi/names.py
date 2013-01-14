@@ -1,13 +1,13 @@
 from __future__ import absolute_import
 
-from ctypes import pointer, byref, cast, c_char_p, c_void_p
+from ctypes import byref, cast, c_char_p, c_void_p
 
 from .gssapi_h import (
     GSS_C_NO_OID, GSS_C_NO_NAME, GSS_S_COMPLETE,
     OM_uint32, gss_buffer_desc, gss_name_t,
     gss_import_name, gss_display_name, gss_release_name, gss_release_buffer
 )
-from . import GSSException, buf_to_str
+from .error import GSSException, buf_to_str
 
 
 class Name(object):
@@ -45,17 +45,20 @@ class Name(object):
         if self._name:
             minor_status = OM_uint32()
             gss_release_name(byref(minor_status), byref(self._name))
-            self._name = GSS_C_NO_NAME
+            self._name = cast(GSS_C_NO_NAME, gss_name_t)
 
     def __del__(self):
         self.release()
 
 
 class MechName(Name):
-    """Represents a GSSAPI Mechanism Name (MN) as obtained by
+    """Represents an internal GSSAPI Mechanism Name (MN) as obtained by
     (e.g.)gss_canonicalize_name or gss_accept_sec_context."""
 
     def __init__(self, name, mech_type):
-        super(MechName, self).__init__()
-        self.arg = arg
-        
+        """Don't construct instances of this class directly; This object will acquire
+        ownership of 'name', and release the associated storage when it is deleted."""
+        self._name = name
+        # self._mech_type = mech_type
+
+    # TODO: export name

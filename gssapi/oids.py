@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from ctypes import pointer, byref, c_int, string_at
+from ctypes import byref, c_int, string_at, cast
 
 from pyasn1.codec.ber import decoder
 
@@ -10,13 +10,13 @@ from .gssapi_h import (
     gss_release_oid_set, gss_create_empty_oid_set, gss_test_oid_set_member,
     gss_indicate_mechs
 )
-from . import GSSException
+from .error import GSSException
 
 
 def get_all_mechs():
     minor_status = OM_uint32()
     mech_set = gss_OID_set()
-    gss_indicate_mechs(pointer(minor_status), pointer(mech_set))
+    gss_indicate_mechs(byref(minor_status), byref(mech_set))
     return OIDSet(oid_set=mech_set)
 
 
@@ -26,7 +26,7 @@ class OID(object):
     _oid_names = {
         "1.2.840.113554.1.2.2":   "Kerberos v5",
         "1.3.6.1.5.5.2":          "SPNEGO",
-        "1.2.752.43.14.2":        "Microsoft Netlogon SSP",
+        "1.2.752.43.14.2":        "Heimdal Microsoft Netlogon SSP",
         "1.3.6.1.5.5.14":         "SCRAM-SHA-1",
         "1.3.6.1.4.1.311.2.2.10": "NTLM",
         "1.3.6.1.5.2.5":          "IAKERB"
@@ -100,7 +100,7 @@ class OIDSet(object):
         if self._oid_set:
             minor_status = OM_uint32()
             gss_release_oid_set(byref(minor_status), byref(self._oid_set))
-            self._oid_set = GSS_C_NO_OID_SET
+            self._oid_set = cast(GSS_C_NO_OID_SET, gss_OID_set)
 
     def __del__(self):
         self.release()
