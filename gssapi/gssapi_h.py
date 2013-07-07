@@ -1,9 +1,12 @@
 '''Wrapper for gssapi.h
 
 Generated with:
-ctypesgen.py --cpp gcc -E -DTARGET_CPU_X86_64=1 -lkrb5 /usr/include/gssapi/gssapi.h -o ../gssapi/gssapi_h.py
+ctypesgen.py --cpp "gcc -E -DTARGET_CPU_X86_64=1" -lkrb5 /usr/include/gssapi/gssapi.h -o gssapi/gssapi_h.py
 
-Do not modify this file.
+Modified for Mac to add packing to structs.
+
+For reference the invocation for Linux is:
+ctypesgen.py (output of krb5-config --libs gssapi here) /usr/include/gssapi/gssapi.h -o gssapi/gssapi_h.py
 '''
 
 __docformat__ =  'restructuredtext'

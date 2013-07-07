@@ -23,7 +23,7 @@ def status_list(maj_status, min_status, status_type=GSS_C_GSS_CODE, mech_type=GS
     message_context = OM_uint32(0)
     minor_status = OM_uint32()
 
-    if isinstance(mech_type, OID):
+    if hasattr(mech_type, '_oid'):
         mech_type = OID._oid
     else:
         mech_type = cast(mech_type, gss_OID)
@@ -59,30 +59,35 @@ def status_list(maj_status, min_status, status_type=GSS_C_GSS_CODE, mech_type=GS
 
 
 def status_to_str(maj_status, min_status, mech_type=GSS_C_NO_OID):
-    return b'\n'.join(status_list(maj_status, min_status, mech_type=mech_type))
+    return b' '.join(status_list(maj_status, min_status, mech_type=mech_type))
 
 
 class GSSException(Exception):
-    """Represents a GSSAPI error"""
+    """Represents a GSSAPI Exception"""
+
+
+class GSSCException(GSSException):
+    """Represents a GSSAPI error reported by the C GSSAPI"""
 
     def __init__(self, maj_status, min_status):
-        super(GSSException, self).__init__()
+        super(GSSCException, self).__init__()
         self.maj_status = maj_status
         self.min_status = min_status
-        self.message = status_to_str(maj_status, min_status)
+        self._create_message()
+
+    def _create_message(self):
+        self.message = status_to_str(self.maj_status, self.min_status)
 
     def __str__(self):
         return self.message
 
 
-class GSSMechException(Exception):
+class GSSMechException(GSSCException):
     """Represents a GSSAPI mechanism-specific error"""
 
     def __init__(self, maj_status, min_status, mech_type):
-        super(GSSMechException, self).__init__()
-        self.maj_status = maj_status
-        self.min_status = min_status
-        self.message = status_to_str(maj_status, min_status, mech_type)
+        self.mech_type = mech_type
+        super(GSSMechException, self).__init__(maj_status, min_status)
 
-    def __str__(self):
-        return self.message
+    def _create_message(self):
+        self.message = status_to_str(self.maj_status, self.min_status, self.mech_type)
