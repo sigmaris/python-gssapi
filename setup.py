@@ -9,7 +9,6 @@ setup(
 
     install_requires=[
         'pyasn1==0.1.6',
-        'ctypesgen==0.r125'
     ],
 
     # metadata for upload to PyPI
