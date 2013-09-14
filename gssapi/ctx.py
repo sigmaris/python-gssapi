@@ -4,8 +4,8 @@ from ctypes import cast, byref, c_char_p, c_void_p, string_at, c_int
 
 from .gssapi_h import (
     GSS_C_NO_CREDENTIAL, GSS_C_NO_OID, GSS_C_NO_CHANNEL_BINDINGS, GSS_C_NO_BUFFER, GSS_C_TRANS_FLAG,
-    GSS_C_INTEG_FLAG, GSS_C_CONF_FLAG, GSS_C_PROT_READY_FLAG, GSS_C_QOP_DEFAULT, GSS_S_CONTINUE_NEEDED,
-    GSS_ERROR,
+    GSS_C_INTEG_FLAG, GSS_C_CONF_FLAG, GSS_C_PROT_READY_FLAG, GSS_C_QOP_DEFAULT, GSS_C_REPLAY_FLAG,
+    GSS_C_SEQUENCE_FLAG, GSS_C_MUTUAL_FLAG, GSS_C_ANON_FLAG, GSS_S_CONTINUE_NEEDED, GSS_ERROR,
     OM_uint32, gss_OID, gss_buffer_desc, gss_buffer_t, gss_ctx_id_t, gss_name_t, gss_cred_id_t,
     gss_qop_t, gss_channel_bindings_t,
     gss_init_sec_context, gss_accept_sec_context, gss_import_sec_context, gss_export_sec_context,
@@ -30,6 +30,50 @@ class Context(object):
 
     def step(self, input_token):
         raise NotImplementedError()
+
+    @property
+    def integrity_negotiated(self):
+        return (
+            self.flags & GSS_C_INTEG_FLAG
+        ) and (
+            self.established or (self.flags & GSS_C_PROT_READY_FLAG)
+        )
+
+    @property
+    def confidentiality_negotiated(self):
+        return (
+            self.flags & GSS_C_CONF_FLAG
+        ) and (
+            self.established or (self.flags & GSS_C_PROT_READY_FLAG)
+        )
+
+    @property
+    def replay_detection_negotiated(self):
+        return (
+            self.flags & GSS_C_REPLAY_FLAG
+        ) and (
+            self.established or (self.flags & GSS_C_PROT_READY_FLAG)
+        )
+
+    @property
+    def sequence_detection_negotiated(self):
+        return (
+            self.flags & GSS_C_SEQUENCE_FLAG
+        ) and (
+            self.established or (self.flags & GSS_C_PROT_READY_FLAG)
+        )
+
+    @property
+    def mutual_auth_requested(self):
+        return (self.flags & GSS_C_MUTUAL_FLAG)
+
+    @property
+    def peer_is_anonymous(self):
+        return (self.flags & GSS_C_ANON_FLAG)
+
+    @property
+    def is_transferable(self):
+        return (self.flags & GSS_C_TRANS_FLAG)
 
     def get_mic(self, message, qop_req=GSS_C_QOP_DEFAULT):
         if not (self.flags & GSS_C_INTEG_FLAG):
@@ -432,6 +476,18 @@ class AcceptContext(Context):
         self._input_chan_bindings = cast(input_chan_bindings, gss_channel_bindings_t)
 
     def step(self, input_token):
+        """Performs a step to establish the context as an acceptor.
+
+        This method should be called in a loop and fed input tokens
+        from the initiator, and its output tokens should be sent to the
+        initiator, until this context's established attribute is True.
+
+        :param input_token: The input token from the initiator (required).
+        :type input_token: bytes.
+        :returns: either a byte string with the next token to send to the initiator,
+            or None if there is no further token to send to the initiator.
+        :raises: GSSException
+        """
         minor_status = OM_uint32()
         input_token_buffer = gss_buffer_desc()
         input_token_buffer.length = len(input_token)
