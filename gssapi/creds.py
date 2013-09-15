@@ -80,6 +80,7 @@ class Credential(BaseCredential):
 
     def __init__(self, desired_name=GSS_C_NO_NAME, time_req=GSS_C_INDEFINITE,
                  desired_mechs=GSS_C_NO_OID_SET, cred_usage=GSS_C_BOTH):
+        super(Credential, self).__init__()
         minor_status = OM_uint32()
 
         if hasattr(desired_name, '_name'):
