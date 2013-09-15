@@ -9,7 +9,7 @@ from .gssapi_h import (
     gss_acquire_cred, gss_inquire_cred,
     gss_release_cred, gss_release_oid_set, gss_release_name
 )
-from .error import GSSException
+from .error import GSSCException
 from .names import BaseName
 from .oids import OIDSet
 
@@ -51,7 +51,7 @@ class BaseCredential(object):
 
         try:
             if GSS_ERROR(retval):
-                raise GSSException(retval, minor_status)
+                raise GSSCException(retval, minor_status)
             if get_name:
                 nameobj = BaseName()
                 nameobj._name = name
@@ -108,10 +108,9 @@ class Credential(BaseCredential):
         )
         try:
             if GSS_ERROR(retval):
-                raise GSSException(retval, minor_status)
+                raise GSSCException(retval, minor_status)
 
             self._mechs = OIDSet(actual_mechs)
-            return self
         except:
             if actual_mechs:
                 gss_release_oid_set(byref(minor_status), byref(actual_mechs))
