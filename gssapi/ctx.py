@@ -88,9 +88,9 @@ class Context(object):
         message_buffer.value = cast(c_char_p(message), c_void_p)
         retval = gss_get_mic(
             byref(minor_status),
-            byref(self._ctx),
+            self._ctx,
             gss_qop_t(qop_req),
-            byref(message),
+            byref(message_buffer),
             byref(output_token_buffer)
         )
         try:
@@ -123,7 +123,7 @@ class Context(object):
 
         retval = gss_verify_mic(
             byref(minor_status),
-            byref(self._ctx),
+            self._ctx,
             byref(message_buffer),
             byref(mic_buffer),
             byref(qop_state)
@@ -152,7 +152,7 @@ class Context(object):
 
         retval = gss_wrap(
             byref(minor_status),
-            byref(self._ctx),
+            self._ctx,
             c_int(conf_req),
             gss_qop_t(qop_req),
             byref(message_buffer),
@@ -188,7 +188,7 @@ class Context(object):
 
         retval = gss_unwrap(
             byref(minor_status),
-            byref(self._ctx),
+            self._ctx,
             byref(message_buffer),
             byref(output_buffer),
             byref(conf_state),
@@ -213,7 +213,7 @@ class Context(object):
         max_input_size = OM_uint32()
         retval = gss_wrap_size_limit(
             byref(minor_status),
-            byref(self._ctx),
+            self._ctx,
             c_int(conf_req),
             gss_qop_t(qop_req),
             req_output_size,
