@@ -83,15 +83,23 @@ class Credential(BaseCredential):
         super(Credential, self).__init__()
         minor_status = OM_uint32()
 
-        if hasattr(desired_name, '_name'):
+        if isinstance(desired_name, BaseName):
             desired_name = desired_name._name
-        else:
+        elif desired_name == GSS_C_NO_NAME:
             desired_name = cast(desired_name, gss_name_t)
-
-        if hasattr(desired_mechs, '_oid_set'):
-            desired_mechs = desired_mechs._oid_set
         else:
+            raise TypeError(
+                "Expected a Name object or GSS_C_NO_NAME, got {0}.".format(type(desired_name))
+            )
+
+        if isinstance(desired_mechs, OIDSet):
+            desired_mechs = desired_mechs._oid_set
+        elif desired_mechs == GSS_C_NO_OID_SET:
             desired_mechs = cast(desired_mechs, gss_OID_set)
+        else:
+            raise TypeError(
+                "Expected an OIDSet object or GSS_C_NO_OID_SET, got {0}.".format(type(desired_mechs))
+            )
 
         actual_mechs = gss_OID_set()
         time_rec = c_uint()
