@@ -32,15 +32,29 @@ class OIDTest(unittest.TestCase):
         self.assertRaises(KeyError, OID.mech_from_string, "{1 1 1 1 1 1 1 1 1 1}")
         self.assertRaises(KeyError, OID.mech_from_string, "1.1.1.1.1.1.1.1.1.1")
 
-    def test_mech_comparison(self):
+
+class KerberosOIDTest(unittest.TestCase):
+
+    OID_AS_STRING = '1.2.840.113554.1.2.2'
+
+    def setUp(self):
         try:
-            krb5mech1 = OID.mech_from_string('{1 2 840 113554 1 2 2}')
+            self.krb5mech = OID.mech_from_string(self.OID_AS_STRING)
         except KeyError:
             self.skipTest("Kerberos 5 mech not available")
-        krb5mech2 = OID.mech_from_string('1.2.840.113554.1.2.2')
-        self.assertEqual(krb5mech1, krb5mech2)
-        self.assertEqual(hash(krb5mech1), hash(krb5mech2))
-        self.assertIn(krb5mech1, get_all_mechs())
+
+    def test_mech_comparison(self):
+        krb5mech2 = OID.mech_from_string(self.OID_AS_STRING)
+        self.assertEqual(self.krb5mech, krb5mech2)
+        self.assertEqual(hash(self.krb5mech), hash(krb5mech2))
+        self.assertIn(self.krb5mech, get_all_mechs())
+        self.assertNotEqual(self.krb5mech, "not a mech")
+
+    def test_repr(self):
+        self.assertIn(self.OID_AS_STRING, repr(self.krb5mech))
+
+    def test_str(self):
+        self.assertEqual(self.OID_AS_STRING, str(self.krb5mech))
 
 
 class OIDSetTest(unittest.TestCase):
@@ -48,13 +62,14 @@ class OIDSetTest(unittest.TestCase):
     def test_singleton_sets(self):
         allmechs = get_all_mechs()
         for mech in allmechs:
-            yield self.check_singleton_set(mech, allmechs)
+            self.check_singleton_set(mech, allmechs)
 
     def check_singleton_set(self, mech, allmechs):
         s = OIDSet.singleton_set(mech)
         self.assertIn(mech, s)
         for other in allmechs:
-            self.assertNotIn(other, s)
+            if other != mech:
+                self.assertNotIn(other, s)
 
     def test_in(self):
         for mech in get_all_mechs():
@@ -72,6 +87,7 @@ class OIDSetTest(unittest.TestCase):
         self.assertEqual(len(new_set), len(get_all_mechs()))
         for mech in get_all_mechs():
             self.assertIn(mech, new_set)
+        self.assertRaises(TypeError, new_set.add, ('not a mech',))
 
     def test_init(self):
         self.assertRaises(TypeError, OIDSet, 'not a gss_OID_set')
@@ -86,7 +102,7 @@ class OIDSetTest(unittest.TestCase):
         all_mechs = get_all_mechs()
         for x in xrange(len(all_mechs)):
             assert all_mechs[x] in all_mechs
-        self.assertRaises(IndexError, lambda n: all_mechs[n], -1)
+        self.assertRaises(IndexError, lambda n: all_mechs[n], -(len(all_mechs) + 1))
         self.assertRaises(IndexError, lambda n: all_mechs[n], len(all_mechs))
 
     def test_eq(self):
@@ -114,6 +130,23 @@ class OIDSetTest(unittest.TestCase):
 
         self.assertEqual(new_set2, new_set1)
         self.assertEqual(new_set2, get_all_mechs())
+
+    def test_ne(self):
+        allmechs = get_all_mechs()
+        if len(allmechs) < 2:
+            self.skipTest("Only one available mechanism.")
+        else:
+            singleton_set1 = OIDSet.singleton_set(allmechs[0])
+            singleton_set2 = OIDSet.singleton_set(allmechs[-1])
+            self.assertNotEqual(singleton_set1, singleton_set2)
+
+    def test_bad_types(self):
+        allmechs = get_all_mechs()
+        self.assertNotEqual(allmechs, 'a string')
+        self.assertNotEqual(allmechs, 500)
+        self.assertNotEqual(allmechs, ['spam'])
+        self.assertNotEqual(allmechs, ['spam'] * len(allmechs))
+
 
     @patch('gssapi.oids.gss_create_empty_oid_set', wraps=gssapi_h.gss_create_empty_oid_set)
     @patch('gssapi.oids.gss_indicate_mechs', wraps=gssapi_h.gss_indicate_mechs)

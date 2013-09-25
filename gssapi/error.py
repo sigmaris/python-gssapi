@@ -23,8 +23,8 @@ def status_list(maj_status, min_status, status_type=GSS_C_GSS_CODE, mech_type=GS
     message_context = OM_uint32(0)
     minor_status = OM_uint32()
 
-    if hasattr(mech_type, '_oid'):
-        mech_type = OID._oid
+    if isinstance(mech_type, OID):
+        mech_type = mech_type._oid
     else:
         mech_type = cast(mech_type, gss_OID)
 
