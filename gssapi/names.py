@@ -35,6 +35,9 @@ class BaseName(object):
         finally:
             gss_release_buffer(byref(minor_status), byref(out_buffer))
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def __eq__(self, other):
         if isinstance(other, BaseName):
             minor_status = OM_uint32()
@@ -76,9 +79,6 @@ class BaseName(object):
             if out_name:
                 gss_release_name(byref(minor_status), byref(out_name))
 
-    def export(self):
-        raise NotImplementedError("Only MechNames can be exported.")
-
     def __del__(self):
         self._release()
 
@@ -98,6 +98,8 @@ class Name(BaseName):
             c_name = uid_t(name)
             name_buffer.length = sizeof(c_name)
             name_buffer.value = cast(pointer(c_name), c_void_p)
+        else:
+            raise TypeError("Expected a string or int, got {0}".format(type(name)))
 
         if hasattr(name_type, '_oid'):
             name_type = byref(name_type._oid)

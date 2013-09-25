@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 
-from .creds import Credential
+from .creds import BaseCredential, Credential
 from .ctx import Context, InitContext, AcceptContext
-from .error import GSSException
+from .error import GSSException, GSSCException
 from .gssapi_h import (
     GSS_C_DELEG_FLAG,
     GSS_C_MUTUAL_FLAG,
@@ -52,5 +52,5 @@ from .gssapi_h import (
     GSS_S_GAP_TOKEN,
     GSS_S_CRED_UNAVAIL,
 )
-from .names import Name
+from .names import Name, BaseName, MechName
 from .oids import OID, OIDSet, get_all_mechs

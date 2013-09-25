@@ -65,15 +65,15 @@ class Context(object):
 
     @property
     def mutual_auth_requested(self):
-        return (self.flags & GSS_C_MUTUAL_FLAG)
+        return bool(self.flags & GSS_C_MUTUAL_FLAG)
 
     @property
     def peer_is_anonymous(self):
-        return (self.flags & GSS_C_ANON_FLAG)
+        return bool(self.flags & GSS_C_ANON_FLAG)
 
     @property
     def is_transferable(self):
-        return (self.flags & GSS_C_TRANS_FLAG)
+        return bool(self.flags & GSS_C_TRANS_FLAG)
 
     def get_mic(self, message, qop_req=GSS_C_QOP_DEFAULT):
         if not (self.flags & GSS_C_INTEG_FLAG):
@@ -167,12 +167,14 @@ class Context(object):
                     raise GSSCException(retval, minor_status)
 
             output_token = string_at(output_token_buffer.value, output_token_buffer.length)
-            return (output_token, bool(conf_state.value))
+            if conf_req and not conf_state.value:
+                raise GSSException("No confidentiality protection.")
+            return output_token
         finally:
             if output_token_buffer.length != 0:
                 gss_release_buffer(byref(minor_status), byref(output_token_buffer))
 
-    def unwrap(self, message):
+    def unwrap(self, message, conf_req=True, qop_req=None):
         if not (self.flags & GSS_C_INTEG_FLAG):
             raise GSSException("No integrity protection negotiated.")
         if not (self.established or (self.flags & GSS_C_PROT_READY_FLAG)):
@@ -202,7 +204,11 @@ class Context(object):
                     raise GSSCException(retval, minor_status)
 
             output = string_at(output_buffer.value, output_buffer.length)
-            return (output, bool(conf_state.value), qop_state.value)
+            if conf_req and not conf_state.value:
+                raise GSSException("No confidentiality protection.")
+            if qop_req is not None and qop_req != qop_state.value:
+                raise GSSException("QOP {0} does not match required value {1}.".format(qop_state.value, qop_req))
+            return output
         finally:
             if output_buffer.length != 0:
                 gss_release_buffer(byref(minor_status), byref(output_buffer))

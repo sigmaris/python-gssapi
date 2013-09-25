@@ -78,8 +78,8 @@ class BaseCredential(object):
 
 class Credential(BaseCredential):
 
-    def __init__(self, desired_name=GSS_C_NO_NAME, time_req=GSS_C_INDEFINITE,
-                 desired_mechs=GSS_C_NO_OID_SET, cred_usage=GSS_C_BOTH):
+    def __init__(self, desired_name=GSS_C_NO_NAME, lifetime=GSS_C_INDEFINITE,
+                 desired_mechs=GSS_C_NO_OID_SET, usage=GSS_C_BOTH):
         super(Credential, self).__init__()
         minor_status = OM_uint32()
 
@@ -107,9 +107,9 @@ class Credential(BaseCredential):
         retval = gss_acquire_cred(
             byref(minor_status),
             desired_name,
-            time_req,
+            OM_uint32(lifetime),
             desired_mechs,
-            cred_usage,
+            gss_cred_usage_t(usage),
             byref(self._cred),
             byref(actual_mechs),
             byref(time_rec)

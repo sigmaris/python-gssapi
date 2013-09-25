@@ -101,6 +101,8 @@ class OIDSet(object):
             return self._oid_set.contents.count
 
     def __getitem__(self, index):
+        if index < 0:
+            index = len(self) + index
         if not self._oid_set or index < 0 or index >= self._oid_set.contents.count:
             raise IndexError("Index out of range.")
 
