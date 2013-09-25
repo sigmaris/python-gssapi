@@ -1,7 +1,7 @@
 '''Wrapper for gssapi.h
 
 Generated with:
-/usr/local/bin/ctypesgen.py -L/usr/lib/x86_64-linux-gnu -lgssapi_krb5 -lkrb5 -lk5crypto -lcom_err /usr/include/gssapi/gssapi.h -o gssapi/linux/gssapi_h.py
+/usr/local/bin/ctypesgen.py -L/usr/lib/x86_64-linux-gnu -lgssapi_krb5 -lkrb5 -lk5crypto /usr/include/gssapi/gssapi.h -o gssapi/linux/gssapi_h.py
 
 Do not modify this file.
 '''
@@ -590,9 +590,8 @@ add_library_search_dirs(['/usr/lib/x86_64-linux-gnu'])
 _libs["gssapi_krb5"] = load_library("gssapi_krb5")
 _libs["krb5"] = load_library("krb5")
 _libs["k5crypto"] = load_library("k5crypto")
-_libs["com_err"] = load_library("com_err")
 
-# 4 libraries
+# 3 libraries
 # End libraries
 
 # No modules
