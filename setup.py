@@ -1,14 +1,18 @@
-from ez_setup import use_setuptools
-use_setuptools()
-from setuptools import setup, find_packages
+try:
+    from setuptools import setup, find_packages
+except ImportError:
+    from ez_setup import use_setuptools
+    use_setuptools()
+    from setuptools import setup, find_packages
 
 setup(
     name="python-gssapi",
-    version="0.2.0",
+    version="0.2.3",
     packages=find_packages(exclude=["tests.*", "tests"]),
+    py_modules=['ez_setup'],
 
     install_requires=[
-        'pyasn1==0.1.6',
+        'pyasn1>=0.1.6',
     ],
 
     # metadata for upload to PyPI
