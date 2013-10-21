@@ -5,7 +5,8 @@ from ctypes import byref
 
 from mock import patch
 
-from gssapi import get_all_mechs, OID, OIDSet, gssapi_h
+from gssapi import get_all_mechs, OID, OIDSet
+from gssapi.headers import gssapi_h
 
 
 class OIDTest(unittest.TestCase):

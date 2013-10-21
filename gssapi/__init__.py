@@ -3,7 +3,7 @@ from __future__ import absolute_import
 from .creds import BaseCredential, Credential
 from .ctx import Context, InitContext, AcceptContext
 from .error import GSSException, GSSCException
-from .gssapi_h import (
+from .headers.gssapi_h import (
     GSS_C_DELEG_FLAG,
     GSS_C_MUTUAL_FLAG,
     GSS_C_REPLAY_FLAG,

@@ -5,7 +5,7 @@ from ctypes import byref, c_int, string_at, cast
 
 from pyasn1.codec.ber import decoder
 
-from .gssapi_h import (
+from .headers.gssapi_h import (
     GSS_C_NO_OID_SET, GSS_S_COMPLETE,
     OM_uint32, gss_OID, gss_OID_desc, gss_OID_set,
     gss_release_oid_set, gss_create_empty_oid_set, gss_test_oid_set_member,

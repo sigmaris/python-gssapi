@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 from ctypes import cast, byref, c_char_p, c_void_p, string_at, c_int
 
-from .gssapi_h import (
+from .headers.gssapi_h import (
     GSS_C_NO_CREDENTIAL, GSS_C_NO_OID, GSS_C_NO_CHANNEL_BINDINGS, GSS_C_NO_BUFFER, GSS_C_TRANS_FLAG,
     GSS_C_INTEG_FLAG, GSS_C_CONF_FLAG, GSS_C_PROT_READY_FLAG, GSS_C_QOP_DEFAULT, GSS_C_REPLAY_FLAG,
     GSS_C_SEQUENCE_FLAG, GSS_C_MUTUAL_FLAG, GSS_C_ANON_FLAG, GSS_S_CONTINUE_NEEDED, GSS_ERROR,
@@ -300,10 +300,14 @@ class Context(object):
 
             if locally_initiated:
                 new_context_obj = InitContext(target_name, mech_type=mech)
+                new_context_obj._ctx = new_context
+                new_context_obj.mech_type = mech
                 new_context_obj.flags = flags.value
                 new_context_obj.established = bool(established)
             else:
                 new_context_obj = AcceptContext()
+                new_context_obj._ctx = new_context
+                new_context_obj.mech_type = mech
                 new_context_obj.flags = flags.value
                 new_context_obj.established = bool(established)
                 new_context_obj.peer_name = src_name

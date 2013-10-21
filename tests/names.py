@@ -12,8 +12,9 @@ from mock import patch
 
 from gssapi import (
     GSSException, Name, OID, GSS_C_NT_USER_NAME, GSS_C_NT_MACHINE_UID_NAME, GSS_C_NT_STRING_UID_NAME,
-    GSS_C_NT_HOSTBASED_SERVICE, gssapi_h
+    GSS_C_NT_HOSTBASED_SERVICE
 )
+from gssapi.headers import gssapi_h
 
 
 class NameTest(unittest.TestCase):

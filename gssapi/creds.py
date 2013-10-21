@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 from ctypes import cast, byref, c_uint
 
-from .gssapi_h import (
+from .headers.gssapi_h import (
     GSS_C_NO_NAME, GSS_C_INDEFINITE, GSS_C_NO_OID_SET, GSS_C_NO_CREDENTIAL,
     GSS_ERROR, GSS_C_INITIATE, GSS_C_ACCEPT, GSS_C_BOTH,
     OM_uint32, gss_cred_id_t, gss_name_t, gss_OID_set, gss_cred_usage_t,

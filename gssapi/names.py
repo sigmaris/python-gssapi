@@ -4,14 +4,15 @@ import numbers
 
 from ctypes import byref, cast, c_char_p, c_void_p, c_int, string_at, sizeof, pointer
 
-from .gssapi_h import (
+from .headers.gssapi_h import (
     GSS_C_NO_OID, GSS_C_NO_NAME, GSS_S_COMPLETE, GSS_ERROR,
     OM_uint32, gss_buffer_desc, gss_name_t, gss_OID,
     gss_import_name, gss_display_name, gss_canonicalize_name,
-    gss_compare_name, gss_export_name, gss_release_name, gss_release_buffer
+    gss_compare_name, gss_export_name, gss_release_name, gss_release_buffer,
+    uid_t
 )
-from .types_h import uid_t
 from .error import GSSCException, GSSException, GSSMechException, buf_to_str
+from .oids import OID
 
 
 class BaseName(object):
@@ -22,16 +23,32 @@ class BaseName(object):
         self._name = gss_name_t()
 
     def __str__(self):
+        return self._display()
+
+    @property
+    def type(self):
+        return self._display(with_type=True)[1]
+
+    def _display(self, with_type=False):
         minor_status = OM_uint32()
         out_buffer = gss_buffer_desc()
+        if with_type:
+            output_name_type = gss_OID()
+            output_name_type_param = byref(output_name_type)
+        else:
+            output_name_type = None
+            output_name_type_param = None
 
         try:
             retval = gss_display_name(
-                byref(minor_status), self._name, byref(out_buffer), None
+                byref(minor_status), self._name, byref(out_buffer), output_name_type_param
             )
             if retval != GSS_S_COMPLETE:
                 raise GSSCException(retval, minor_status)
-            return buf_to_str(out_buffer)
+            if with_type:
+                return buf_to_str(out_buffer), OID(output_name_type.contents)
+            else:
+                return buf_to_str(out_buffer)
         finally:
             gss_release_buffer(byref(minor_status), byref(out_buffer))
 
