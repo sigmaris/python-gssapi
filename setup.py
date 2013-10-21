@@ -105,17 +105,27 @@ class build_py(_build_py):
         ctypesgen_dist = pkg_resources.get_distribution(
             pkg_resources.Requirement.parse('ctypesgen==0.r125')
         )
-        script_str = ctypesgen_dist.get_metadata('scripts/ctypesgen.py')
+        try:
+            script_str = ctypesgen_dist.get_metadata('scripts/ctypesgen.py')
+            ctypesgen_command = ["python", "-", "--cpp", self.ctypesgen_cpp]
+        except:
+            script_str = None
+            ctypesgen_command = ["ctypesgen.py", "--cpp", self.ctypesgen_cpp]
 
         new_env = dict(os.environ)
         new_env['PYTHONPATH'] = ctypesgen_dist.location
 
-        ctypesgen_command = ["python", "-", "--cpp", self.ctypesgen_cpp]
         ctypesgen_command.extend(self.compile_flags)
         ctypesgen_command.extend(["-o", target])
         ctypesgen_command.append(self.gssapi_h_location)
-        ctypesgen_proc = subprocess.Popen(ctypesgen_command, stdin=subprocess.PIPE, env=new_env)
-        ctypesgen_proc.communicate(script_str)
+
+        if script_str:
+            ctypesgen_proc = subprocess.Popen(ctypesgen_command, stdin=subprocess.PIPE, env=new_env)
+            ctypesgen_proc.communicate(script_str)
+            if ctypesgen_proc.returncode != 0:
+                raise subprocess.CalledProcessError(ctypesgen_proc.returncode, ctypesgen_command)
+        else:
+            subprocess.check_call(ctypesgen_command)
 
         if self.patch_struct_pack is not None:
             patched_source = "".join(self._patch_struct_packing(
@@ -128,7 +138,7 @@ class build_py(_build_py):
 
 setup(
     name="python-gssapi",
-    version="0.2.4",
+    version="0.2.5-alpha",
     cmdclass={
         "build_py": build_py,
     },
