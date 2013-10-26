@@ -138,7 +138,7 @@ class build_py(_build_py):
 
 setup(
     name="python-gssapi",
-    version="0.2.5",
+    version="0.3.0-alpha",
     cmdclass={
         "build_py": build_py,
     },

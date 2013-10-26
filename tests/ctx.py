@@ -4,7 +4,7 @@ import multiprocessing
 import unittest
 
 from gssapi import (
-    Context, InitContext, AcceptContext, Credential, OID, GSS_C_ACCEPT
+    Context, InitContext, AcceptContext, Credential, OID, C_ACCEPT
 )
 
 
@@ -15,7 +15,7 @@ def server_worker(in_q, out_q):
 
 
 def client_worker(in_q, out_q):
-    default_accept_cred = Credential(usage=GSS_C_ACCEPT)
+    default_accept_cred = Credential(usage=C_ACCEPT)
     ctx = InitContext(default_accept_cred.name)
     token = None
     while not ctx.established:

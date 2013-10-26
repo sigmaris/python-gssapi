@@ -11,8 +11,8 @@ from ctypes import byref
 from mock import patch
 
 from gssapi import (
-    GSSException, Name, OID, GSS_C_NT_USER_NAME, GSS_C_NT_MACHINE_UID_NAME, GSS_C_NT_STRING_UID_NAME,
-    GSS_C_NT_HOSTBASED_SERVICE
+    GSSException, Name, OID, C_NT_USER_NAME, C_NT_MACHINE_UID_NAME, C_NT_STRING_UID_NAME,
+    C_NT_HOSTBASED_SERVICE
 )
 from gssapi.headers import gssapi_h
 
@@ -31,23 +31,23 @@ class NameTest(unittest.TestCase):
 
     def test_import_name(self):
         Name("spam")
-        Name(self.user, GSS_C_NT_USER_NAME)
-        Name("host@example.com", GSS_C_NT_HOSTBASED_SERVICE)
-        Name("HTTP", GSS_C_NT_HOSTBASED_SERVICE)
+        Name(self.user, C_NT_USER_NAME)
+        Name("host@example.com", C_NT_HOSTBASED_SERVICE)
+        Name("HTTP", C_NT_HOSTBASED_SERVICE)
         if not self.is_heimdal_mac:
-            Name(str(self.uid), GSS_C_NT_STRING_UID_NAME)
-            Name(self.uid, GSS_C_NT_MACHINE_UID_NAME)
+            Name(str(self.uid), C_NT_STRING_UID_NAME)
+            Name(self.uid, C_NT_MACHINE_UID_NAME)
 
     def test_display_name(self):
         self.assertEqual("spam", str(Name("spam")))
-        self.assertEqual(self.user, str(Name(self.user, GSS_C_NT_USER_NAME)))
-        self.assertEqual("host@example.com", str(Name("host@example.com", GSS_C_NT_HOSTBASED_SERVICE)))
-        self.assertEqual("HTTP", str(Name("HTTP", GSS_C_NT_HOSTBASED_SERVICE)))
+        self.assertEqual(self.user, str(Name(self.user, C_NT_USER_NAME)))
+        self.assertEqual("host@example.com", str(Name("host@example.com", C_NT_HOSTBASED_SERVICE)))
+        self.assertEqual("HTTP", str(Name("HTTP", C_NT_HOSTBASED_SERVICE)))
         if not self.is_heimdal_mac:
-            self.assertEqual(str(self.uid), str(Name(str(self.uid), GSS_C_NT_STRING_UID_NAME)))
+            self.assertEqual(str(self.uid), str(Name(str(self.uid), C_NT_STRING_UID_NAME)))
 
     def test_bad_canonicalize(self):
-        host_name = Name("host@example.com", GSS_C_NT_HOSTBASED_SERVICE)
+        host_name = Name("host@example.com", C_NT_HOSTBASED_SERVICE)
         self.assertRaises(TypeError, host_name.canonicalize, ("not an OID"))
 
     def test_bad_input(self):
@@ -69,20 +69,20 @@ class KerberosNameTest(NameTest):
             'spam@.+'
         )
         self.assertRegexpMatches(
-            str(Name(self.user, GSS_C_NT_USER_NAME).canonicalize(self.krb5mech)),
+            str(Name(self.user, C_NT_USER_NAME).canonicalize(self.krb5mech)),
             re.escape(self.user) + '@.+'
         )
         self.assertRegexpMatches(
-            str(Name("host@{0}".format(self.fqdn), GSS_C_NT_HOSTBASED_SERVICE).canonicalize(self.krb5mech)),
+            str(Name("host@{0}".format(self.fqdn), C_NT_HOSTBASED_SERVICE).canonicalize(self.krb5mech)),
             'host/' + re.escape(self.fqdn) + '@.+'
         )
         if not self.is_heimdal_mac:
             self.assertRegexpMatches(
-                str(Name(str(self.uid), GSS_C_NT_STRING_UID_NAME).canonicalize(self.krb5mech)),
+                str(Name(str(self.uid), C_NT_STRING_UID_NAME).canonicalize(self.krb5mech)),
                 '.+@.+'
             )
             self.assertRegexpMatches(
-                str(Name(self.uid, GSS_C_NT_MACHINE_UID_NAME).canonicalize(self.krb5mech)),
+                str(Name(self.uid, C_NT_MACHINE_UID_NAME).canonicalize(self.krb5mech)),
                 '.+@.+'
             )
         self.assertRaises(
@@ -92,19 +92,19 @@ class KerberosNameTest(NameTest):
         )
 
     def test_eq(self):
-        name1 = Name(self.user, GSS_C_NT_USER_NAME)
-        name2 = Name(self.user, GSS_C_NT_USER_NAME)
+        name1 = Name(self.user, C_NT_USER_NAME)
+        name2 = Name(self.user, C_NT_USER_NAME)
         self.assertEqual(name1, name2)
-        name3 = Name("host@example.com", GSS_C_NT_HOSTBASED_SERVICE)
+        name3 = Name("host@example.com", C_NT_HOSTBASED_SERVICE)
         self.assertNotEqual(name1, name3)
         self.assertNotEqual("not a real name", name1)
         self.assertFalse(name1 == 10101)
 
     def test_compare_canonicalized(self):
-        name1 = Name(self.user, GSS_C_NT_USER_NAME)
+        name1 = Name(self.user, C_NT_USER_NAME)
         canon1 = name1.canonicalize(self.krb5mech)
         self.assertEqual(name1, canon1)
-        name2 = Name("notarealusername", GSS_C_NT_USER_NAME)
+        name2 = Name("notarealusername", C_NT_USER_NAME)
         canon2 = name2.canonicalize(self.krb5mech)
         self.assertEqual(name2, canon2)
         self.assertNotEqual(canon1, canon2)
@@ -114,23 +114,23 @@ class KerberosNameTest(NameTest):
         self.assertIsInstance(name1exp, str)
         self.assertGreater(len(name1exp), 0)
 
-        user_name_exp = Name(self.user, GSS_C_NT_USER_NAME).canonicalize(self.krb5mech).export()
+        user_name_exp = Name(self.user, C_NT_USER_NAME).canonicalize(self.krb5mech).export()
         self.assertIsInstance(user_name_exp, str)
         self.assertGreater(len(user_name_exp), 0)
 
-        svc_name_exp = Name("host@example.com", GSS_C_NT_HOSTBASED_SERVICE).canonicalize(self.krb5mech).export()
+        svc_name_exp = Name("host@example.com", C_NT_HOSTBASED_SERVICE).canonicalize(self.krb5mech).export()
         self.assertIsInstance(svc_name_exp, str)
         self.assertGreater(len(svc_name_exp), 0)
 
-        bare_svc_name_exp = Name("HTTP", GSS_C_NT_HOSTBASED_SERVICE).canonicalize(self.krb5mech).export()
+        bare_svc_name_exp = Name("HTTP", C_NT_HOSTBASED_SERVICE).canonicalize(self.krb5mech).export()
         self.assertIsInstance(bare_svc_name_exp, str)
         self.assertGreater(len(bare_svc_name_exp), 0)
         if not self.is_heimdal_mac:
-            str_uid_name_exp = Name(str(self.uid), GSS_C_NT_STRING_UID_NAME).canonicalize(self.krb5mech).export()
+            str_uid_name_exp = Name(str(self.uid), C_NT_STRING_UID_NAME).canonicalize(self.krb5mech).export()
             self.assertIsInstance(str_uid_name_exp, str)
             self.assertGreater(len(str_uid_name_exp), 0)
 
-            machine_uid_name_exp = Name(self.uid, GSS_C_NT_MACHINE_UID_NAME).canonicalize(self.krb5mech).export()
+            machine_uid_name_exp = Name(self.uid, C_NT_MACHINE_UID_NAME).canonicalize(self.krb5mech).export()
             self.assertIsInstance(machine_uid_name_exp, str)
             self.assertGreater(len(machine_uid_name_exp), 0)
 
@@ -147,7 +147,7 @@ class KerberosNameTest(NameTest):
 
     @patch('gssapi.names.gss_release_name', wraps=gssapi_h.gss_release_name)
     def test_doublefree(self, mocked):
-        name = Name("spam", GSS_C_NT_USER_NAME)
+        name = Name("spam", C_NT_USER_NAME)
         backing_struct = name._name
         name._release()
         name._release()

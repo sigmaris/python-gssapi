@@ -4,7 +4,7 @@ import unittest
 
 from gssapi import (
     Credential, GSSCException,
-    GSS_S_NO_CRED, GSS_S_CREDENTIALS_EXPIRED, GSS_C_INITIATE, GSS_C_ACCEPT
+    S_NO_CRED, S_CREDENTIALS_EXPIRED, C_INITIATE, C_ACCEPT
 )
 
 
@@ -21,10 +21,10 @@ class DefaultInitCredentialTest(unittest.TestCase):
 
     def setUp(self):
         try:
-            self.cred = Credential(usage=GSS_C_INITIATE)
+            self.cred = Credential(usage=C_INITIATE)
             self.cred.name
         except GSSCException as exc:
-            if exc.maj_status in (GSS_S_NO_CRED, GSS_S_CREDENTIALS_EXPIRED):
+            if exc.maj_status in (S_NO_CRED, S_CREDENTIALS_EXPIRED):
                 self.skipTest("No default init credential available, try running with a Kerberos ticket.")
             else:
                 raise
@@ -37,7 +37,7 @@ class DefaultInitCredentialTest(unittest.TestCase):
         self.assertLessEqual(second_lifetime, first_lifetime)
 
     def test_usage(self):
-        self.assertEqual(GSS_C_INITIATE, self.cred.usage)
+        self.assertEqual(C_INITIATE, self.cred.usage)
 
     def test_name(self):
         self.assertGreater(len(str(self.cred.name)), 0)
@@ -47,14 +47,14 @@ class DefaultAcceptCredentialTest(DefaultInitCredentialTest):
 
     def setUp(self):
         try:
-            self.cred = Credential(usage=GSS_C_ACCEPT)
+            self.cred = Credential(usage=C_ACCEPT)
             self.cred.name
         except GSSCException as exc:
-            if exc.maj_status == GSS_S_NO_CRED:
+            if exc.maj_status == S_NO_CRED:
                 self.skipTest("No default accept credential available, "
                     "try running with a Kerberos keytab readable.")
             else:
                 raise
 
     def test_usage(self):
-        self.assertEqual(GSS_C_ACCEPT, self.cred.usage)
+        self.assertEqual(C_ACCEPT, self.cred.usage)
