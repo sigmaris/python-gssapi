@@ -444,11 +444,16 @@ class InitContext(Context):
             byref(actual_time)
         )
         try:
+            if output_token_buffer.length != 0:
+                out_token = string_at(output_token_buffer.value, output_token_buffer.length)
+            else:
+                out_token = None
+
             if GSS_ERROR(retval):
                 if minor_status and actual_mech:
-                    raise GSSMechException(retval, minor_status, actual_mech)
+                    raise GSSMechException(retval, minor_status, actual_mech, out_token)
                 else:
-                    raise GSSCException(retval, minor_status)
+                    raise GSSCException(retval, minor_status, out_token)
 
             self.established = not (retval & GSS_S_CONTINUE_NEEDED)
             self.flags = actual_flags.value
@@ -456,10 +461,7 @@ class InitContext(Context):
             if actual_mech:
                 self.mech_type = OID(actual_mech.contents)
 
-            if output_token_buffer.length != 0:
-                return string_at(output_token_buffer.value, output_token_buffer.length)
-            else:
-                return None
+            return out_token
         except:
             if self._ctx:
                 gss_delete_sec_context(
@@ -526,11 +528,16 @@ class AcceptContext(Context):
             byref(delegated_cred_handle)
         )
         try:
+            if output_token_buffer.length != 0:
+                out_token = string_at(output_token_buffer.value, output_token_buffer.length)
+            else:
+                out_token = None
+
             if GSS_ERROR(retval):
                 if minor_status and mech_type:
-                    raise GSSMechException(retval, minor_status, mech_type)
+                    raise GSSMechException(retval, minor_status, mech_type, out_token)
                 else:
-                    raise GSSCException(retval, minor_status)
+                    raise GSSCException(retval, minor_status, out_token)
 
             self.established = not (retval & GSS_S_CONTINUE_NEEDED)
             self.flags = actual_flags.value
@@ -544,10 +551,7 @@ class AcceptContext(Context):
                 if src_name:
                     self.peer_name = MechName(src_name, mech_type)
 
-            if output_token_buffer.length != 0:
-                return string_at(output_token_buffer.value, output_token_buffer.length)
-            else:
-                return None
+            return out_token
         except:
             if self._ctx:
                 gss_delete_sec_context(

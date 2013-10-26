@@ -66,13 +66,16 @@ def status_to_str(maj_status, min_status, mech_type=GSS_C_NO_OID):
 
 class GSSException(Exception):
     """Represents a GSSAPI Exception"""
+    def __init__(self, *args, **kwargs):
+        super(GSSException, self).__init__(*args)
+        self.token = kwargs.get('token')
 
 
 class GSSCException(GSSException):
     """Represents a GSSAPI error reported by the C GSSAPI"""
 
-    def __init__(self, maj_status, min_status):
-        super(GSSCException, self).__init__()
+    def __init__(self, maj_status, min_status, token=None):
+        super(GSSCException, self).__init__(token=token)
         self.maj_status = maj_status
         self.min_status = min_status
         self._create_message()
@@ -87,9 +90,9 @@ class GSSCException(GSSException):
 class GSSMechException(GSSCException):
     """Represents a GSSAPI mechanism-specific error"""
 
-    def __init__(self, maj_status, min_status, mech_type):
+    def __init__(self, maj_status, min_status, mech_type, token=None):
         self.mech_type = mech_type
-        super(GSSMechException, self).__init__(maj_status, min_status)
+        super(GSSMechException, self).__init__(maj_status, min_status, token)
 
     def _create_message(self):
         self.message = status_to_str(self.maj_status, self.min_status, self.mech_type)
