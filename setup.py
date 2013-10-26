@@ -44,8 +44,8 @@ class build_py(_build_py):
                 if os.path.isfile(full_header):
                     return full_header
 
-    def _patch_struct_packing(self, headerpath, filename, packing):
-        comment_matcher = re.compile(r"^# {path}: \d+$".format(path=re.escape(headerpath)))
+    def _patch_struct_packing(self, filename, packing):
+        comment_matcher = re.compile(r"^# .+\.h: \d+$")
         struct_matcher = re.compile(r"^class [a-zA-Z_][a-zA-Z0-9_]*\(Structure\):$")
         expect_struct = False
         with open(filename, 'r') as infile:
@@ -62,24 +62,35 @@ class build_py(_build_py):
         _build_py.initialize_options(self)
         self.compile_flags = ()
         self.patch_struct_pack = None
-        self.ctypesgen_cpp = "gcc -E"
-        self.gssapi_h_location = None
+        self.ctypesgen_cpp = "gcc -E -D__attribute__\\(x\\)="
+        self.gssapi_h_locations = []
 
     def finalize_options(self):
         _build_py.finalize_options(self)
-        try:
-            config_compile_flags = subprocess.check_output(["krb5-config", "--cflags", "gssapi"]).split()
-            config_link_flags = subprocess.check_output(["krb5-config", "--libs", "gssapi"]).split()
-        except subprocess.CalledProcessError:
+        if os.path.isdir('/System/Library/Frameworks/GSS.framework'):
+            # Build using GSS.framework on Mac OS X 10.7+
+            self.gssapi_h_locations = []
+            for header in ('gssapi.h', 'gssapi_oid.h', 'gssapi_protos.h'):
+                path_in_framework = os.path.join('/System/Library/Frameworks/GSS.framework/Headers', header)
+                if os.path.isfile(path_in_framework):
+                    self.gssapi_h_locations.append(path_in_framework)
+            self.compile_flags = ('-lGSS',)
+            self.cpp_extra_flags = ('-framework GSS',)
+        else:
+            # Build using libgssapi on other POSIX systems
             try:
-                config_compile_flags = subprocess.check_output(["pkg-config", "--cflags", "gss"]).split()
-                config_link_flags = subprocess.check_output(["pkg-config", "--libs", "gss"]).split()
-            except subprocess.CalledProcessError:
-                config_compile_flags = []
-                config_link_flags = []
-
-        self.compile_flags = (self._strip_unknown_cflags(config_compile_flags)
-                              + self._strip_unknown_cflags(config_link_flags))
+                config_compile_flags = subprocess.check_output(["krb5-config", "--cflags", "gssapi"]).split()
+                config_link_flags = subprocess.check_output(["krb5-config", "--libs", "gssapi"]).split()
+            except:
+                try:
+                    config_compile_flags = subprocess.check_output(["pkg-config", "--cflags", "gss"]).split()
+                    config_link_flags = subprocess.check_output(["pkg-config", "--libs", "gss"]).split()
+                except:
+                    config_compile_flags = []
+                    config_link_flags = []
+            self.compile_flags = (self._strip_unknown_cflags(config_compile_flags)
+                                  + self._strip_unknown_cflags(config_link_flags))
+            self.cpp_extra_flags = tuple(config_compile_flags)
 
         currentplatform = platform.system()
         if currentplatform == 'Darwin':
@@ -91,11 +102,14 @@ class build_py(_build_py):
                 "ppc64": "TARGET_CPU_PPC64",
                 "ppc": "TARGET_CPU_PPC",
             }[machine]
-            self.ctypesgen_cpp = "gcc -E -D{0}".format(define)
+            self.ctypesgen_cpp = "gcc -E -D{0} -D__attribute__\\(x\\)= {1}".format(define, " ".join(self.cpp_extra_flags))
+        else:
+            self.ctypesgen_cpp = "gcc -E -D__attribute__\\(x\\)= {0}".format(" ".join(self.cpp_extra_flags))
 
         self.compile_flags += ("-i", "uid_t")
 
-        self.gssapi_h_location = self._find_gssapi_h(self.compile_flags)
+        if not self.gssapi_h_locations:
+            self.gssapi_h_locations = [self._find_gssapi_h(self.compile_flags)]
 
     def run(self):
         target = _build_py.get_module_outfile(self, self.build_lib, ['gssapi', 'headers'], "gssapi_h")
@@ -117,7 +131,7 @@ class build_py(_build_py):
 
         ctypesgen_command.extend(self.compile_flags)
         ctypesgen_command.extend(["-o", target])
-        ctypesgen_command.append(self.gssapi_h_location)
+        ctypesgen_command.extend(self.gssapi_h_locations)
 
         if script_str:
             ctypesgen_proc = subprocess.Popen(ctypesgen_command, stdin=subprocess.PIPE, env=new_env)
@@ -129,7 +143,7 @@ class build_py(_build_py):
 
         if self.patch_struct_pack is not None:
             patched_source = "".join(self._patch_struct_packing(
-                self.gssapi_h_location, target, self.patch_struct_pack
+                target, self.patch_struct_pack
             ))
             with open(target, 'w') as outfile:
                 outfile.write(patched_source)
