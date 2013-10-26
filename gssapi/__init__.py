@@ -53,4 +53,4 @@ from .headers.gssapi_h import (
     GSS_S_CRED_UNAVAIL as S_CRED_UNAVAIL,
 )
 from .names import Name, BaseName, MechName
-from .oids import OID, OIDSet, get_all_mechs
+from .oids import OID, OIDSet, MutableOIDSet, get_all_mechs

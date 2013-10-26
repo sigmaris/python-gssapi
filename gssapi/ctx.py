@@ -3,9 +3,10 @@ from __future__ import absolute_import
 from ctypes import cast, byref, c_char_p, c_void_p, string_at, c_int
 
 from .headers.gssapi_h import (
-    GSS_C_NO_CREDENTIAL, GSS_C_NO_OID, GSS_C_NO_CHANNEL_BINDINGS, GSS_C_NO_BUFFER, GSS_C_TRANS_FLAG,
+    GSS_C_NO_CREDENTIAL, GSS_C_NO_OID, GSS_C_NO_CHANNEL_BINDINGS, GSS_C_NO_BUFFER,
     GSS_C_INTEG_FLAG, GSS_C_CONF_FLAG, GSS_C_PROT_READY_FLAG, GSS_C_QOP_DEFAULT, GSS_C_REPLAY_FLAG,
-    GSS_C_SEQUENCE_FLAG, GSS_C_MUTUAL_FLAG, GSS_C_ANON_FLAG, GSS_S_CONTINUE_NEEDED, GSS_ERROR,
+    GSS_C_SEQUENCE_FLAG, GSS_C_MUTUAL_FLAG, GSS_C_ANON_FLAG, GSS_C_DELEG_FLAG, GSS_C_TRANS_FLAG,
+    GSS_S_CONTINUE_NEEDED, GSS_ERROR,
     OM_uint32, gss_OID, gss_buffer_desc, gss_buffer_t, gss_ctx_id_t, gss_name_t, gss_cred_id_t,
     gss_qop_t, gss_channel_bindings_t,
     gss_init_sec_context, gss_accept_sec_context, gss_import_sec_context, gss_export_sec_context,
@@ -16,6 +17,7 @@ from .headers.gssapi_h import (
 from .error import GSSCException, GSSException, GSSMechException
 from .names import MechName, BaseName
 from .oids import OID
+from .creds import BaseCredential
 
 
 class Context(object):
@@ -482,6 +484,7 @@ class AcceptContext(Context):
             self._cred_object = cred
         else:
             self._cred = cast(cred, gss_cred_id_t)
+        self.delegated_cred = None
 
         self._input_chan_bindings = cast(input_chan_bindings, gss_channel_bindings_t)
 
@@ -532,6 +535,9 @@ class AcceptContext(Context):
             self.established = not (retval & GSS_S_CONTINUE_NEEDED)
             self.flags = actual_flags.value
 
+            if (self.flags & GSS_C_DELEG_FLAG):
+                self.delegated_cred = BaseCredential(delegated_cred_handle)
+
             if mech_type:
                 self.mech_type = OID(mech_type.contents)
 
@@ -556,5 +562,6 @@ class AcceptContext(Context):
         finally:
             if output_token_buffer.length != 0:
                 gss_release_buffer(byref(minor_status), byref(output_token_buffer))
-            if delegated_cred_handle:
+            # if self.delegated_cred is present, it will handle gss_release_cred:
+            if delegated_cred_handle and not self.delegated_cred:
                 gss_release_cred(byref(minor_status), byref(delegated_cred_handle))

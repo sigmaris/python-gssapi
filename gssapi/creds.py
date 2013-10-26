@@ -17,28 +17,39 @@ from .oids import OIDSet
 class BaseCredential(object):
     """Wraps a GSS credential handle (gss_cred_id_t)"""
 
-    def __init__(self):
+    def __init__(self, wrapped=None):
         super(BaseCredential, self).__init__()
-        self._cred = gss_cred_id_t()
+        self._mechs = None
+        if wrapped is not None:
+            self._cred = wrapped
+        else:
+            self._cred = gss_cred_id_t()
 
     @property
     def name(self):
-        return self._inquire(True, False, False)[0]
+        return self._inquire(True, False, False, False)[0]
 
     @property
     def lifetime(self):
-        return self._inquire(False, True, False)[1]
+        return self._inquire(False, True, False, False)[1]
 
     @property
     def usage(self):
-        return self._inquire(False, False, True)[2]
+        return self._inquire(False, False, True, False)[2]
 
-    def _inquire(self, get_name, get_lifetime, get_usage):
+    @property
+    def mechs(self):
+        if not self._mechs:
+            self._mechs = self._inquire(False, False, False, True)[3]
+        return self._mechs
+
+    def _inquire(self, get_name, get_lifetime, get_usage, get_mechs):
         minor_status = OM_uint32()
 
         name = gss_name_t()
         lifetime = OM_uint32()
         usage = gss_cred_usage_t()
+        mechs = gss_OID_set()
 
         retval = gss_inquire_cred(
             byref(minor_status),
@@ -46,7 +57,7 @@ class BaseCredential(object):
             byref(name) if get_name else None,
             byref(lifetime) if get_lifetime else None,
             byref(usage) if get_usage else None,
-            None
+            byref(mechs) if get_mechs else None
         )
 
         try:
@@ -55,15 +66,20 @@ class BaseCredential(object):
             if get_name:
                 nameobj = BaseName()
                 nameobj._name = name
+            if get_mechs:
+                mechsobj = OIDSet(mechs)
             return (
                 nameobj if get_name else None,
                 lifetime.value if get_lifetime else None,
-                usage.value if get_usage else None
+                usage.value if get_usage else None,
+                mechsobj if get_mechs else None
             )
 
         except:
             if name:
                 gss_release_name(byref(minor_status), byref(name))
+            if mechs:
+                gss_release_oid_set(byref(minor_status), byref(mechs))
             raise
 
     def _release(self):

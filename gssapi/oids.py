@@ -67,7 +67,8 @@ class OID(object):
 
 
 class OIDSet(object):
-    """Wraps a gss_OID_set"""
+    """Wraps a gss_OID_set. This can be returned from methods like gss_inquire_cred
+    where it shouldn't be modified by the caller, since it's immutable."""
     def __init__(self, oid_set=None):
         super(OIDSet, self).__init__()
         self._oid_set = gss_OID_set()
@@ -111,24 +112,20 @@ class OIDSet(object):
     @classmethod
     def singleton_set(cls, single_oid):
         new_set = cls()
-        new_set.add(single_oid)
+        if isinstance(single_oid, OID):
+            oid_ptr = byref(single_oid._oid)
+        elif isinstance(single_oid, gss_OID_desc):
+            oid_ptr = byref(single_oid)
+        elif isinstance(single_oid, gss_OID):
+            oid_ptr = single_oid
+        else:
+            raise TypeError("Expected an OID, got " + str(type(single_oid)))
+
+        minor_status = OM_uint32()
+        retval = gss_add_oid_set_member(byref(minor_status), oid_ptr, byref(new_set._oid_set))
+        if retval != GSS_S_COMPLETE:
+            raise GSSCException(retval, minor_status)
         return new_set
-
-    def add(self, new_oid):
-        if self._oid_set:
-            if isinstance(new_oid, OID):
-                oid_ptr = byref(new_oid._oid)
-            elif isinstance(new_oid, gss_OID_desc):
-                oid_ptr = byref(new_oid)
-            elif isinstance(new_oid, gss_OID):
-                oid_ptr = new_oid
-            else:
-                raise TypeError("Expected an OID, got " + str(type(new_oid)))
-
-            minor_status = OM_uint32()
-            retval = gss_add_oid_set_member(byref(minor_status), oid_ptr, byref(self._oid_set))
-            if retval != GSS_S_COMPLETE:
-                raise GSSCException(retval, minor_status)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -155,3 +152,23 @@ class OIDSet(object):
 
     def __del__(self):
         self._release()
+
+
+class MutableOIDSet(OIDSet):
+    """Wraps a gss_OID_set."""
+
+    def add(self, new_oid):
+        if self._oid_set:
+            if isinstance(new_oid, OID):
+                oid_ptr = byref(new_oid._oid)
+            elif isinstance(new_oid, gss_OID_desc):
+                oid_ptr = byref(new_oid)
+            elif isinstance(new_oid, gss_OID):
+                oid_ptr = new_oid
+            else:
+                raise TypeError("Expected an OID, got " + str(type(new_oid)))
+
+            minor_status = OM_uint32()
+            retval = gss_add_oid_set_member(byref(minor_status), oid_ptr, byref(self._oid_set))
+            if retval != GSS_S_COMPLETE:
+                raise GSSCException(retval, minor_status)

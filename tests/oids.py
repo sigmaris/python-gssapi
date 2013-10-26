@@ -5,7 +5,7 @@ from ctypes import byref
 
 from mock import patch
 
-from gssapi import get_all_mechs, OID, OIDSet
+from gssapi import get_all_mechs, OID, OIDSet, MutableOIDSet
 from gssapi.headers import gssapi_h
 
 
@@ -79,7 +79,7 @@ class OIDSetTest(unittest.TestCase):
         self.assertNotIn("not an OID", get_all_mechs())
 
     def test_add(self):
-        new_set = OIDSet()
+        new_set = MutableOIDSet()
         prev_len = 0
         for mech in get_all_mechs():
             new_set.add(mech)
@@ -108,8 +108,8 @@ class OIDSetTest(unittest.TestCase):
 
     def test_eq(self):
         self.assertEqual(get_all_mechs(), get_all_mechs())
-        new_set1 = OIDSet()
-        new_set2 = OIDSet()
+        new_set1 = MutableOIDSet()
+        new_set2 = MutableOIDSet()
 
         counter = 0
         for mech in get_all_mechs():
