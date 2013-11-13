@@ -54,7 +54,7 @@ from .headers.gssapi_h import (
 # this flag doesn't exist in kerberos <= 5.1.7
 try:
     from .headers.gssapi_h import GSS_C_DELEG_POLICY_FLAG as C_DELEG_POLICY_FLAG
-except:
+ImportError:
     pass
 from .names import Name, BaseName, MechName
 from .oids import OID, OIDSet, MutableOIDSet, get_all_mechs
