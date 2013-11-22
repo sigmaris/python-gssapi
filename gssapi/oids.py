@@ -15,6 +15,10 @@ from .error import GSSCException
 
 
 def get_all_mechs():
+    """
+    Return an :class:`OIDSet` of all the mechanisms supported by the underlying GSSAPI
+    implementation.
+    """
     minor_status = OM_uint32()
     mech_set = gss_OID_set()
     gss_indicate_mechs(byref(minor_status), byref(mech_set))
@@ -22,7 +26,16 @@ def get_all_mechs():
 
 
 class OID(object):
-    """Wraps a gss_OID_desc"""
+    """
+    Represents an `Object Identifier <http://en.wikipedia.org/wiki/Object_identifier>`_. These are
+    used by GSSAPI to identify mechanism types, and name types, amongst other things.
+
+    Normally there is no reason to construct instances of this class directly; objects of this
+    class are returned from :meth:`get_all_mechs` or :meth:`mech_from_string` to identify
+    mechanisms, as the :attr:`~gssapi.ctx.Context.mech_type` attribute of
+    :class:`~gssapi.ctx.Context` objects, and as the :attr:`~gssapi.names.Name.type` attribute of
+    :class:`~gssapi.names.Name` objects.
+    """
 
     def __init__(self, oid, parent_set=None):
         super(OID, self).__init__()
@@ -46,6 +59,18 @@ class OID(object):
 
     @staticmethod
     def mech_from_string(input_string):
+        """
+        Takes a string form of a mechanism OID, in dot-separated: "1.2.840.113554.1.2.2" or numeric
+        ASN.1: "{1 2 840 113554 1 2 2}" notation, and returns an :class:`OID` object representing
+        the mechanism, which can be passed to other GSSAPI methods.
+
+        :param input_string: a string representing the desired mechanism OID.
+        :returns: the mechanism OID.
+        :rtype: :class:`OID`
+        :raises: ValueError if the the input string is ill-formatted.
+        :raises: KeyError if the mechanism identified by the string is not supported by the
+            underlying GSSAPI implementation.
+        """
         if not re.match(r'^\d+(\.\d+)*$', input_string):
             if re.match(r'^\{\d+( \d+)*\}$', input_string):
                 input_string = ".".join(input_string[1:-1].split())
@@ -67,9 +92,15 @@ class OID(object):
 
 
 class OIDSet(object):
-    """Wraps a gss_OID_set. This can be returned from methods like gss_inquire_cred
-    where it shouldn't be modified by the caller, since it's immutable."""
+    """
+    Represents a set of OIDs returned by the GSSAPI. This object supports array access to the OIDs
+    contained within. This set is immutable; if you need to incrementally create an :class:`OIDSet`
+    by adding :class:`OID` objects to it, use :class:`MutableOIDSet`.
+    """
+
     def __init__(self, oid_set=None):
+        """Wraps a gss_OID_set. This can be returned from methods like gss_inquire_cred
+        where it shouldn't be modified by the caller, since it's immutable."""
         super(OIDSet, self).__init__()
         self._oid_set = gss_OID_set()
 
@@ -111,6 +142,14 @@ class OIDSet(object):
 
     @classmethod
     def singleton_set(cls, single_oid):
+        """
+        Factory function to create a new :class:`OIDSet` with a single member.
+
+        :param single_oid: the OID to use as a member of the new set
+        :type single_oid: :class:`OID`
+        :returns: an OID set with the OID passed in as the only member
+        :rtype: :class:`OIDSet`
+        """
         new_set = cls()
         if isinstance(single_oid, OID):
             oid_ptr = byref(single_oid._oid)
@@ -145,7 +184,7 @@ class OIDSet(object):
     def _release(self):
         """Releases storage backing this OIDSet. After calling this method,
         this OIDSet can no longer be used."""
-        if self._oid_set:
+        if hasattr(self, '_oid_set') and self._oid_set:
             minor_status = OM_uint32()
             gss_release_oid_set(byref(minor_status), byref(self._oid_set))
             self._oid_set = cast(GSS_C_NO_OID_SET, gss_OID_set)
@@ -155,9 +194,28 @@ class OIDSet(object):
 
 
 class MutableOIDSet(OIDSet):
-    """Wraps a gss_OID_set."""
+    """
+    Represents a set of OIDs returned by the GSSAPI. This object supports array access to the OIDs
+    contained within, and can also be modified by :meth:`add` to incrementally construct a set from
+    a number of OIDs.
+
+    .. py:classmethod:: singleton_set(single_oid)
+
+        Factory function to create a new :class:`MutableOIDSet` with a single member.
+
+        :param single_oid: the OID to use as a member of the new set
+        :type single_oid: :class:`OID`
+        :returns: a mutable OID set with the OID passed in as the only member
+        :rtype: :class:`MutableOIDSet`
+    """
 
     def add(self, new_oid):
+        """
+        Adds another :class:`OID` to this set.
+
+        :param new_oid: the OID to add.
+        :type new_oid: :class:`OID`
+        """
         if self._oid_set:
             if isinstance(new_oid, OID):
                 oid_ptr = byref(new_oid._oid)
