@@ -193,7 +193,7 @@ setup(
         'ctypesgen==0.r125',
     ],
     install_requires=[
-        'pyasn1>=0.1.6',
+        'pyasn1>=0.1.2',
     ],
 
     # metadata for upload to PyPI

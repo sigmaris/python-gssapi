@@ -7,4 +7,3 @@ TODO
 * ``gss_add_cred`` support?
 * Add support for useful GSSAPI / krb5 extensions, e.g. storing delegated credentials
 * Create more specific subclasses of GSSCException for bad mech, missing credentials, etc
-* Find earliest version of pyasn1 that supports what we need and reduce required version
