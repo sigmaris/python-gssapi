@@ -1,7 +1,6 @@
 TODO
 ====
 
-* Make ``python setup.py develop`` install the generated _h.py file(s) in gssapi/headers
 * Support channel bindings
 * Implement ``Context.process_context_token``
 * Return ``S_DUPLICATE_TOKEN``, etc information from unwrap and verify_mic
