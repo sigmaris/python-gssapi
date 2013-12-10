@@ -10,7 +10,6 @@ from .headers.gssapi_h import (
     GSS_C_ANON_FLAG as C_ANON_FLAG,
     GSS_C_PROT_READY_FLAG as C_PROT_READY_FLAG,
     GSS_C_TRANS_FLAG as C_TRANS_FLAG,
-    GSS_C_DELEG_POLICY_FLAG as C_DELEG_POLICY_FLAG,
     GSS_C_BOTH as C_BOTH,
     GSS_C_INITIATE as C_INITIATE,
     GSS_C_ACCEPT as C_ACCEPT,
@@ -50,6 +49,11 @@ from .headers.gssapi_h import (
     GSS_S_GAP_TOKEN as S_GAP_TOKEN,
     GSS_S_CRED_UNAVAIL as S_CRED_UNAVAIL,
 )
+# this flag doesn't exist in kerberos <= 5.1.7
+try:
+    from .headers.gssapi_h import GSS_C_DELEG_POLICY_FLAG as C_DELEG_POLICY_FLAG
+except ImportError:
+    pass
 from .creds import Credential
 from .ctx import Context, InitContext, AcceptContext
 from .error import GSSException, GSSCException
