@@ -24,6 +24,7 @@ Contents
 
    examples
    compatibility
+   contributors
    api/gssapi
    todo
 
