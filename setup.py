@@ -3,6 +3,7 @@ import os.path
 import platform
 import re
 import subprocess
+import sys
 
 try:
     from setuptools import setup, find_packages
@@ -119,7 +120,7 @@ def _generate_headers(self, target):
     )
     try:
         script_str = ctypesgen_dist.get_metadata('scripts/ctypesgen.py')
-        ctypesgen_command = ["python", "-", "--cpp", self.ctypesgen_cpp]
+        ctypesgen_command = [sys.executable, "-", "--cpp", self.ctypesgen_cpp]
     except:
         script_str = None
         ctypesgen_command = ["ctypesgen.py", "--cpp", self.ctypesgen_cpp]
