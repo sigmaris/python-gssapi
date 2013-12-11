@@ -77,6 +77,10 @@ indicate that the corresponding feature has been negotiated and enabled.
     If :const:`C_DELEG_FLAG` is set, it overrides this flag and causes delegation to always be used,
     regardless of policy.
 
+    This flag is not available in versions of MIT Kerberos 5 before Release 1.7, so if this Python
+    package is installed using an older version, this constant will not be defined as a member of
+    the :mod:`gssapi` module.
+
 Usage Constants
 ^^^^^^^^^^^^^^^
 

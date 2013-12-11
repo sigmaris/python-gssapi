@@ -49,7 +49,7 @@ from .headers.gssapi_h import (
     GSS_S_GAP_TOKEN as S_GAP_TOKEN,
     GSS_S_CRED_UNAVAIL as S_CRED_UNAVAIL,
 )
-# this flag doesn't exist in kerberos <= 5.1.7
+# this flag doesn't exist in MIT Kerberos 5 before Release 1.7
 try:
     from .headers.gssapi_h import GSS_C_DELEG_POLICY_FLAG as C_DELEG_POLICY_FLAG
 except ImportError:
