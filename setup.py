@@ -182,7 +182,7 @@ class develop(_develop):
 
 setup(
     name="python-gssapi",
-    version="0.4.1-pre",
+    version="0.4.1",
     cmdclass={
         "build_py": build_py,
         "develop": develop,
