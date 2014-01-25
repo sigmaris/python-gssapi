@@ -1,14 +1,20 @@
 from __future__ import absolute_import
 
-from ctypes import cast, byref, c_uint
+from ctypes import cast, byref, c_uint, c_char_p, c_void_p, string_at
 
 from .headers.gssapi_h import (
     GSS_C_NO_NAME, GSS_C_INDEFINITE, GSS_C_NO_OID_SET, GSS_C_NO_CREDENTIAL,
     GSS_ERROR, GSS_C_INITIATE, GSS_C_ACCEPT, GSS_C_BOTH,
-    OM_uint32, gss_cred_id_t, gss_name_t, gss_OID_set, gss_cred_usage_t,
+    OM_uint32, gss_cred_id_t, gss_name_t, gss_OID_set, gss_cred_usage_t, gss_buffer_desc,
     gss_acquire_cred, gss_inquire_cred,
-    gss_release_cred, gss_release_oid_set, gss_release_name
+    gss_release_cred, gss_release_oid_set, gss_release_name, gss_release_buffer
 )
+try:
+    from .headers.gssapi_h import gss_export_cred, gss_import_cred
+except ImportError:
+    # No support for export/import credentials
+    gss_export_cred, gss_import_cred = None, None
+
 from .error import GSSCException
 from .names import Name
 from .oids import OIDSet
@@ -90,6 +96,43 @@ class Credential(object):
             if actual_mechs:
                 gss_release_oid_set(byref(minor_status), byref(actual_mechs))
             self._release()
+            raise
+
+    def export(self):
+        if gss_export_cred is None:
+            raise NotImplementedError("The GSSAPI implementation does not support gss_export_cred")
+
+        token_buffer = gss_buffer_desc()
+        minor_status = OM_uint32()
+        retval = gss_export_cred(byref(minor_status), self._cred, byref(token_buffer))
+        try:
+            if GSS_ERROR(retval):
+                raise GSSCException(retval, minor_status)
+
+            return string_at(token_buffer.value, token_buffer.length)
+        finally:
+            if token_buffer.length != 0:
+                gss_release_buffer(byref(minor_status), byref(token_buffer))
+
+    @classmethod
+    def imprt(cls, exported_token):
+        if gss_import_cred is None:
+            raise NotImplementedError("The GSSAPI implementation does not support gss_import_cred")
+
+        imported_cred = gss_cred_id_t()
+        minor_status = OM_uint32()
+        token_buffer = gss_buffer_desc()
+        token_buffer.length = len(exported_token)
+        token_buffer.value = cast(c_char_p(exported_token), c_void_p)
+        retval = gss_import_cred(byref(minor_status), byref(token_buffer), byref(imported_cred))
+        try:
+            if GSS_ERROR(retval):
+                raise GSSCException(retval, minor_status)
+
+            return cls(imported_cred)
+        except:
+            if imported_cred:
+                gss_release_cred(byref(minor_status), byref(imported_cred))
             raise
 
     @property
