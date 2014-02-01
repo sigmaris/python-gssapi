@@ -1,14 +1,19 @@
 from __future__ import absolute_import
 
-from ctypes import cast, byref, c_uint
+from ctypes import cast, byref, c_uint, c_char_p, c_void_p
 
 from .headers.gssapi_h import (
     GSS_C_NO_NAME, GSS_C_INDEFINITE, GSS_C_NO_OID_SET, GSS_C_NO_CREDENTIAL,
     GSS_ERROR, GSS_C_INITIATE, GSS_C_ACCEPT, GSS_C_BOTH,
-    OM_uint32, gss_cred_id_t, gss_name_t, gss_OID_set, gss_cred_usage_t,
+    OM_uint32, gss_cred_id_t, gss_name_t, gss_OID_set, gss_cred_usage_t, gss_buffer_desc,
     gss_acquire_cred, gss_inquire_cred,
     gss_release_cred, gss_release_oid_set, gss_release_name
 )
+try:
+    # This function is only implemented in MIT Kerberos >= 1.9 and Heimdal >= 1.5
+    from .headers.gssapi_h import gss_acquire_cred_with_password
+except ImportError:
+    gss_acquire_cred_with_password = None
 from .error import GSSCException
 from .names import Name
 from .oids import OIDSet
@@ -16,9 +21,15 @@ from .oids import OIDSet
 
 class Credential(object):
     """
-    Acquire a reference to a pre-existing credential. Use this to create a credential with a
-    specific name to use in an :class:`AcceptContext` or to select a specific identity from the
-    user's credential set to use as an initiator credential.
+    Acquire a reference to a credential. Use this to create a credential with a specific name to
+    use in an :class:`~gssapi.ctx.AcceptContext`, to select a specific identity from the user's
+    credential set to use as an initiator credential, or to obtain a credential using a password.
+
+    Note that obtaining a credential using a password is a nonstandard extension to the GSSAPI and
+    may not be supported by the underlying implementation (see :doc:`/compatibility`); in that case
+    :exc:`~exceptions.NotImplementedError` will be raised if a `password` parameter is passed to
+    the Credential constructor. Also, if the `password` parameter is passed, normally the
+    `desired_name` parameter must also be provided.
 
     :param desired_name: Optional Name to acquire a credential for. Defaults to the user's
         default identity.
@@ -30,14 +41,22 @@ class Credential(object):
     :type desired_mechs: :class:`~gssapi.oids.OIDSet`
     :param usage: Flag indicating whether to obtain a credential which can be used as an
         initiator credential, an acceptor credential, or both.
-    :type usage: One of :data:`~gssapi.C_INITIATE`, :data:`~gssapi.C_ACCEPT` or :data:`~gssapi.C_BOTH`
+    :type usage: One of :data:`~gssapi.C_INITIATE`, :data:`~gssapi.C_ACCEPT` or
+        :data:`~gssapi.C_BOTH`
+    :param password: Optional password to use. If this parameter is provided, the library will
+        attempt to acquire a new credential using the given password. Otherwise, a reference to an
+        existing credential will be acquired.
+    :type password: bytes
     :returns: a :class:`Credential` object referring to the requested credential.
     :raises: :exc:`~gssapi.error.GSSException` if there is an error acquiring a reference to the
         credential.
+
+        :exc:`~exceptions.NotImplementedError` if a password is provided but the underlying GSSAPI
+        implementation does not support acquiring credentials with a password.
     """
 
     def __init__(self, desired_name=GSS_C_NO_NAME, lifetime=GSS_C_INDEFINITE,
-                 desired_mechs=GSS_C_NO_OID_SET, usage=GSS_C_BOTH):
+                 desired_mechs=GSS_C_NO_OID_SET, usage=GSS_C_BOTH, password=None):
         super(Credential, self).__init__()
 
         self._mechs = None
@@ -47,6 +66,10 @@ class Credential(object):
             return
         else:
             self._cred = gss_cred_id_t()
+
+        if password is not None and gss_acquire_cred_with_password is None:
+            raise NotImplementedError("The GSSAPI implementation does not support "
+                                      "gss_acquire_cred_with_password")
 
         minor_status = OM_uint32()
 
@@ -71,16 +94,33 @@ class Credential(object):
         actual_mechs = gss_OID_set()
         time_rec = c_uint()
 
-        retval = gss_acquire_cred(
-            byref(minor_status),
-            desired_name,
-            OM_uint32(lifetime),
-            desired_mechs,
-            gss_cred_usage_t(usage),
-            byref(self._cred),
-            byref(actual_mechs),
-            byref(time_rec)
-        )
+        if password is not None:
+            pw_buffer = gss_buffer_desc(
+                len(password),
+                cast(c_char_p(password), c_void_p)
+            )
+            retval = gss_acquire_cred_with_password(
+                byref(minor_status),
+                desired_name,
+                byref(pw_buffer),
+                OM_uint32(lifetime),
+                desired_mechs,
+                gss_cred_usage_t(usage),
+                byref(self._cred),
+                byref(actual_mechs),
+                byref(time_rec)
+            )
+        else:
+            retval = gss_acquire_cred(
+                byref(minor_status),
+                desired_name,
+                OM_uint32(lifetime),
+                desired_mechs,
+                gss_cred_usage_t(usage),
+                byref(self._cred),
+                byref(actual_mechs),
+                byref(time_rec)
+            )
         try:
             if GSS_ERROR(retval):
                 raise GSSCException(retval, minor_status)
