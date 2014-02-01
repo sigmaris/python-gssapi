@@ -45,9 +45,9 @@ class Context(object):
     .. py:attribute:: flags
 
         This is an integer which is the bitwise-OR of all the flags representing features that have
-        been negotiated on an established connection. It is recommended to check the
-        :attr:`integrity_negotiated`, :attr:`confidentiality_negotiated`, etc, properties than
-        doing bitwise comparisons on this attribute.
+        been negotiated on an established connection. It is recommended to check the properties
+        :attr:`integrity_negotiated`, :attr:`confidentiality_negotiated`, etc, instead of doing
+        bitwise comparisons on this attribute.
     """
     def __init__(self):
         self._ctx = gss_ctx_id_t()
@@ -681,8 +681,8 @@ class AcceptContext(Context):
     context on the acceptor side. The initiator is normally authenticated as part of the context
     establishment process, though some mechanisms support anonymous peers.
 
-    :param cred: The credential to use for the acceptor. Pass :data:`C_NO_CREDENTIAL` to use
-        the default acceptor credentials (e.g. any principal in the default keytab, when the
+    :param cred: The credential to use for the acceptor. Pass :const:`gssapi.C_NO_CREDENTIAL` to
+        use the default acceptor credentials (e.g. any principal in the default keytab, when the
         Kerberos mechanism is used).
     :type cred: :class:`~gssapi.creds.Credential`
 
