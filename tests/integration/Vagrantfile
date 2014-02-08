@@ -1,0 +1,24 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "precise64"
+  config.vm.box_url = "http://files.vagrantup.com/precise64.box"
+
+  config.vm.provision "puppet" do |puppet|
+    puppet.module_path = "modules"
+  end
+  config.vm.synced_folder "../../", "/python-gssapi"
+
+  config.vm.define "kdc" do |kdc|
+    kdc.vm.hostname = "kdc"
+    kdc.vm.network "private_network", ip: "10.0.0.2", virtualbox__intnet: "pythongssapi"
+  end
+
+  config.vm.define "server" do |srv|
+    srv.vm.hostname = "server"
+    srv.vm.network "private_network", ip: "10.0.0.3", virtualbox__intnet: "pythongssapi"
+  end
+
+  config.vm.define "client" do |cli|
+    cli.vm.hostname = "client"
+    cli.vm.network "private_network", ip: "10.0.0.4", virtualbox__intnet: "pythongssapi"
+  end
+end
