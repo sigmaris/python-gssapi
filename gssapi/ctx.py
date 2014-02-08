@@ -600,7 +600,8 @@ class InitContext(Context):
         from the acceptor, and its output tokens should be sent to the
         acceptor, until this context's established attribute is True.
 
-        :param input_token: The input token from the acceptor (omit this param on the first step).
+        :param input_token: The input token from the acceptor (omit this param or pass None on
+            the first call).
         :type input_token: bytes.
         :returns: either a byte string with the next token to send to the acceptor,
             or None if there is no further token to send to the acceptor.
