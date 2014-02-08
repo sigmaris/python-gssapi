@@ -50,7 +50,7 @@ class DefaultAcceptCredentialTest(DefaultInitCredentialTest):
             self.cred = Credential(usage=C_ACCEPT)
             self.cred.name
         except GSSCException as exc:
-            if exc.maj_status == S_NO_CRED:
+            if exc.maj_status == S_NO_CRED or 'Permission denied' in exc.message:
                 self.skipTest("No default accept credential available, "
                     "try running with a Kerberos keytab readable.")
             else:
