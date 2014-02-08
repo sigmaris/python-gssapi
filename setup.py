@@ -115,6 +115,12 @@ def _finalize_options(self):
 
 
 def _generate_headers(self, target):
+    if not any(self.gssapi_h_locations):
+        raise RuntimeError(
+            "GSSAPI headers could not be found. "
+            "Please install the GSSAPI C library development headers for your OS."
+        )
+
     ctypesgen_dist = pkg_resources.get_distribution(
         pkg_resources.Requirement.parse('ctypesgen==0.r125')
     )
