@@ -20,7 +20,7 @@ if __name__ == '__main__':
     server_proc = subprocess_on_vm('server', 'cd /python-gssapi && sudo python tests/integration/server.py')
 
     client_proc = subprocess_on_vm('client', ' && '.join((
-        'echo "userpassword" | kinit testuser',
+        'echo "userpassword" | kinit -f testuser',
         'cd /python-gssapi',
         'nosetests tests.integration.test_client:ClientIntegrationTest'
     )))
