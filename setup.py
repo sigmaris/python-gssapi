@@ -28,7 +28,7 @@ def _strip_unknown_cflags(cflags):
 
 
 def _find_gssapi_h(cflags):
-    gcc_target = subprocess.check_output(["gcc", "-dumpmachine"])
+    gcc_target = subprocess.check_output(["gcc", "-dumpmachine"]).strip()
     default_paths = [
         "/usr/local/include",
         "/usr/{target}/include".format(target=gcc_target),
@@ -90,6 +90,8 @@ def _finalize_options(self):
             except:
                 config_compile_flags = []
                 config_link_flags = []
+        config_compile_flags = [ f.decode() for f in config_compile_flags ]
+        config_link_flags = [ f.decode() for f in config_link_flags ]
         self.compile_flags = (_strip_unknown_cflags(config_compile_flags)
                               + _strip_unknown_cflags(config_link_flags))
         self.cpp_extra_flags = tuple(config_compile_flags)
