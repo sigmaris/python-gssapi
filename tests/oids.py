@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import unittest
+import sys
 from ctypes import byref
 
 from mock import patch
@@ -101,8 +102,12 @@ class OIDSetTest(unittest.TestCase):
 
     def test_array_access(self):
         all_mechs = get_all_mechs()
-        for x in xrange(len(all_mechs)):
-            assert all_mechs[x] in all_mechs
+        if sys.version_info < (3,):
+            for x in xrange(len(all_mechs)):
+                assert all_mechs[x] in all_mechs
+        else:
+            for x in range(len(all_mechs)):
+                assert all_mechs[x] in all_mechs
         self.assertRaises(IndexError, lambda n: all_mechs[n], -(len(all_mechs) + 1))
         self.assertRaises(IndexError, lambda n: all_mechs[n], len(all_mechs))
 
