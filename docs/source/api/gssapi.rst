@@ -15,7 +15,7 @@ members of the :mod:`gssapi` package, so you can do:
 Flags
 ^^^^^
 
-The flags here have two uses: they can be bitwise-ORed and passed as the `req_flags` parameter to
+The flags here have two uses: they can be passed in a list as the `req_flags` parameter to
 :class:`~gssapi.ctx.InitContext` to request that the corresponding feature is enabled, and they are
 set as the :attr:`~gssapi.ctx.Context.flags` attribute of an established security context to
 indicate that the corresponding feature has been negotiated and enabled.
