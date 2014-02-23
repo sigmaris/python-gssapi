@@ -72,7 +72,7 @@ def _finalize_options(self):
     if os.path.isdir('/System/Library/Frameworks/GSS.framework'):
         # Build using GSS.framework on Mac OS X 10.7+
         self.gssapi_h_locations = []
-        for header in ('gssapi.h', 'gssapi_oid.h', 'gssapi_protos.h'):
+        for header in ('gssapi.h', 'gssapi_oid.h', 'gssapi_protos.h', 'gssapi_krb5.h'):
             path_in_framework = os.path.join('/System/Library/Frameworks/GSS.framework/Headers', header)
             if os.path.isfile(path_in_framework):
                 self.gssapi_h_locations.append(path_in_framework)
