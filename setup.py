@@ -203,6 +203,7 @@ setup(
     ],
     install_requires=[
         'pyasn1>=0.1.2',
+        'six>=1.5.0'
     ],
 
     # metadata for upload to PyPI
