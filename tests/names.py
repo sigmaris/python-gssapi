@@ -11,8 +11,8 @@ from ctypes import byref
 from mock import patch
 
 from gssapi import (
-    GSSException, Name, OID, C_NT_USER_NAME, C_NT_MACHINE_UID_NAME, C_NT_STRING_UID_NAME,
-    C_NT_HOSTBASED_SERVICE
+    GSSException, Name, MechName, OID, C_NT_USER_NAME, C_NT_MACHINE_UID_NAME, C_NT_STRING_UID_NAME,
+    C_NT_HOSTBASED_SERVICE, C_NT_EXPORT_NAME
 )
 from gssapi.headers import gssapi_h
 
@@ -111,28 +111,41 @@ class KerberosNameTest(NameTest):
 
     def test_export(self):
         name1exp = Name("spam").canonicalize(self.krb5mech).export()
-        self.assertIsInstance(name1exp, str)
+        self.assertIsInstance(name1exp, bytes)
         self.assertGreater(len(name1exp), 0)
 
         user_name_exp = Name(self.user, C_NT_USER_NAME).canonicalize(self.krb5mech).export()
-        self.assertIsInstance(user_name_exp, str)
+        self.assertIsInstance(user_name_exp, bytes)
         self.assertGreater(len(user_name_exp), 0)
 
         svc_name_exp = Name("host@example.com", C_NT_HOSTBASED_SERVICE).canonicalize(self.krb5mech).export()
-        self.assertIsInstance(svc_name_exp, str)
+        self.assertIsInstance(svc_name_exp, bytes)
         self.assertGreater(len(svc_name_exp), 0)
 
         bare_svc_name_exp = Name("HTTP", C_NT_HOSTBASED_SERVICE).canonicalize(self.krb5mech).export()
-        self.assertIsInstance(bare_svc_name_exp, str)
+        self.assertIsInstance(bare_svc_name_exp, bytes)
         self.assertGreater(len(bare_svc_name_exp), 0)
         if not self.is_heimdal_mac:
             str_uid_name_exp = Name(str(self.uid), C_NT_STRING_UID_NAME).canonicalize(self.krb5mech).export()
-            self.assertIsInstance(str_uid_name_exp, str)
+            self.assertIsInstance(str_uid_name_exp, bytes)
             self.assertGreater(len(str_uid_name_exp), 0)
 
             machine_uid_name_exp = Name(self.uid, C_NT_MACHINE_UID_NAME).canonicalize(self.krb5mech).export()
-            self.assertIsInstance(machine_uid_name_exp, str)
+            self.assertIsInstance(machine_uid_name_exp, bytes)
             self.assertGreater(len(machine_uid_name_exp), 0)
+
+    def test_export_import(self):
+        for name in (
+            Name("spam"),
+            Name(self.user, C_NT_USER_NAME),
+            Name("host@example.com", C_NT_HOSTBASED_SERVICE),
+            Name("HTTP", C_NT_HOSTBASED_SERVICE)
+        ):
+            name_canon = name.canonicalize(self.krb5mech)
+            name_exp = name_canon.export()
+            name_imp = Name(name_exp, C_NT_EXPORT_NAME)
+            self.assertIsInstance(name_imp, MechName)
+            self.assertEqual(name_imp, name_canon, "{0} != {1}".format(name_imp, name_canon))
 
     @patch('gssapi.names.gss_import_name', wraps=gssapi_h.gss_import_name)
     @patch('gssapi.names.gss_canonicalize_name', wraps=gssapi_h.gss_canonicalize_name)

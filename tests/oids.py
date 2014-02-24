@@ -101,7 +101,7 @@ class OIDSetTest(unittest.TestCase):
 
     def test_array_access(self):
         all_mechs = get_all_mechs()
-        for x in xrange(len(all_mechs)):
+        for x in range(len(all_mechs)):
             assert all_mechs[x] in all_mechs
         self.assertRaises(IndexError, lambda n: all_mechs[n], -(len(all_mechs) + 1))
         self.assertRaises(IndexError, lambda n: all_mechs[n], len(all_mechs))

@@ -1,8 +1,9 @@
 from __future__ import absolute_import
 
 import re
+import sys
 from ctypes import byref, c_int, string_at, cast
-
+import struct
 from pyasn1.codec.ber import decoder
 
 from .headers.gssapi_h import (
@@ -54,7 +55,10 @@ class OID(object):
     def __hash__(self):
         hsh = 31
         for c in string_at(self._oid.elements, self._oid.length):
-            hsh = 101 * hsh + ord(c)
+            if sys.version_info >= (3,):
+                hsh = 101 * hsh + c
+            else:
+                hsh = 101 * hsh + ord(c)
         return hsh
 
     @staticmethod
@@ -86,7 +90,7 @@ class OID(object):
 
     def __str__(self):
         tag = b'\x06'
-        length = chr(self._oid.length)
+        length = struct.pack('B', self._oid.length)
         value = string_at(self._oid.elements, self._oid.length)
         return str(decoder.decode(tag + length + value)[0])
 

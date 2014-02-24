@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 
-import numbers
-
 from ctypes import byref, cast, c_char_p, c_void_p, c_int, string_at, sizeof, pointer
+
+import six
 
 from .headers.gssapi_h import (
     GSS_C_NO_OID, GSS_C_NO_NAME, GSS_S_COMPLETE, GSS_ERROR, GSS_C_NT_USER_NAME,
@@ -44,7 +44,6 @@ class Name(object):
         :const:`gssapi.C_NT_USER_NAME` or :const:`gssapi.C_NT_HOSTBASED_SERVICE`.
     :type name_type: `gssapi.C_NT_*` constant or :class:`~gssapi.oids.OID`
     """
-    __metaclass__ = _NameMeta
 
     def __init__(self, name, name_type=GSS_C_NO_OID):
         super(Name, self).__init__()
@@ -61,15 +60,18 @@ class Name(object):
         minor_status = OM_uint32()
 
         name_buffer = gss_buffer_desc()
-        if isinstance(name, basestring):
+        if isinstance(name, bytes):
             name_buffer.length = len(name)
             name_buffer.value = cast(c_char_p(name), c_void_p)
-        elif isinstance(name, numbers.Integral):
+        elif isinstance(name, six.string_types):
+            name_buffer.length = len(name)
+            name_buffer.value = cast(c_char_p(name.encode()), c_void_p)
+        elif isinstance(name, six.integer_types):
             c_name = uid_t(name)
             name_buffer.length = sizeof(c_name)
             name_buffer.value = cast(pointer(c_name), c_void_p)
         else:
-            raise TypeError("Expected a string or int, got {0}".format(type(name)))
+            raise TypeError("Expected a string or integer, got {0}".format(type(name)))
 
         if isinstance(name_type, OID):
             name_type = byref(name_type._oid)
@@ -86,7 +88,7 @@ class Name(object):
             raise GSSCException(retval, minor_status)
 
     def __str__(self):
-        return self._display()
+        return self._display().decode()
 
     @property
     def type(self):
@@ -176,6 +178,9 @@ class Name(object):
 
     def __del__(self):
         self._release()
+
+# Add metaclass in Python 2/3 compatible way:
+Name = six.add_metaclass(_NameMeta)(Name)
 
 
 class MechName(Name):
