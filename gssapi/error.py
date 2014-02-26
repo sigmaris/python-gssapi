@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from ctypes import byref, string_at, cast
+from ctypes import byref, string_at, cast, pointer
 
 from .headers.gssapi_h import (
     GSS_C_GSS_CODE, GSS_C_MECH_CODE, GSS_C_NO_OID,
@@ -38,9 +38,13 @@ def status_list(maj_status, min_status, status_type=GSS_C_GSS_CODE, mech_type=GS
     minor_status = OM_uint32()
 
     if isinstance(mech_type, OID):
-        mech_type = mech_type._oid
-    else:
+        mech_type = pointer(mech_type._oid)  # OID._oid is type struct gss_OID_desc
+    elif (mech_type is GSS_C_NO_OID) or isinstance(mech_type, gss_OID):
         mech_type = cast(mech_type, gss_OID)
+    else:
+        raise TypeError(
+            "Expected mech_type to be a gssapi.oids.OID or gss_OID, got {0}".format(type(mech_type))
+        )
 
     while True:
         status_buf = gss_buffer_desc()
@@ -61,8 +65,10 @@ def status_list(maj_status, min_status, status_type=GSS_C_GSS_CODE, mech_type=GS
                 ))
             elif retval == GSS_S_BAD_MECH:
                 statuses.append("Unsupported mechanism type passed to GSSException")
+                break
             elif retval == GSS_S_BAD_STATUS:
                 statuses.append("Unrecognized status value passed to GSSException")
+                break
         finally:
             gss_release_buffer(byref(minor_status), byref(status_buf))
 
