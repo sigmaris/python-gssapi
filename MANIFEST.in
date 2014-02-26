@@ -1,0 +1,2 @@
+exclude gssapi/headers/gssapi_h.py
+
