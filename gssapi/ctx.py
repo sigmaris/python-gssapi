@@ -547,7 +547,10 @@ class Context(object):
                     gss_release_buffer(byref(minor_status), byref(output_token_buffer))
 
     def __del__(self):
-        self._release()
+        try:
+            self._release()
+        except:
+            pass
 
 
 class InitContext(Context):
