@@ -190,7 +190,7 @@ class develop(_develop):
 
 setup(
     name="python-gssapi",
-    version="0.5.0",
+    version="0.5.1",
     cmdclass={
         "build_py": build_py,
         "develop": develop,
