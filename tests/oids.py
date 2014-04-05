@@ -1,12 +1,12 @@
 from __future__ import absolute_import
 
 import unittest
-from ctypes import byref
 
 from mock import patch
 
 from gssapi import get_all_mechs, OID, OIDSet, MutableOIDSet
-from gssapi.headers import gssapi_h
+from gssapi.oids import _release_OID_set
+from gssapi.headers import ffi, C
 
 
 class OIDTest(unittest.TestCase):
@@ -75,7 +75,7 @@ class OIDSetTest(unittest.TestCase):
     def test_in(self):
         for mech in get_all_mechs():
             self.assertIn(mech, get_all_mechs())
-        self.assertNotIn(OID(gssapi_h.gss_OID_desc()), get_all_mechs())
+        self.assertNotIn(OID(ffi.new('gss_OID_desc[1]')[0]), get_all_mechs())
         self.assertNotIn("not an OID", get_all_mechs())
 
     def test_add(self):
@@ -96,7 +96,7 @@ class OIDSetTest(unittest.TestCase):
     def test_length(self):
         self.assertEqual(len(OIDSet()), 0)
         new_set = OIDSet()
-        new_set._oid_set = gssapi_h.gss_OID_set()
+        new_set._oid_set = ffi.new('gss_OID_set[1]')
         self.assertEqual(len(new_set), 0)
 
     def test_array_access(self):
@@ -148,43 +148,41 @@ class OIDSetTest(unittest.TestCase):
         self.assertNotEqual(allmechs, ['spam'])
         self.assertNotEqual(allmechs, ['spam'] * len(allmechs))
 
-
-    @patch('gssapi.oids.gss_create_empty_oid_set', wraps=gssapi_h.gss_create_empty_oid_set)
-    @patch('gssapi.oids.gss_indicate_mechs', wraps=gssapi_h.gss_indicate_mechs)
-    @patch('gssapi.oids.gss_release_oid_set', wraps=gssapi_h.gss_release_oid_set)
+    @patch('gssapi.oids.C.gss_create_empty_oid_set', wraps=C.gss_create_empty_oid_set)
+    @patch('gssapi.oids.C.gss_indicate_mechs', wraps=C.gss_indicate_mechs)
+    @patch('gssapi.oids.C.gss_release_oid_set', wraps=C.gss_release_oid_set)
     def test_matched_release(self, release, indicate, create):
         self.test_add()
         self.test_singleton_sets()
         self.test_in()
         self.test_array_access()
         self.test_eq()
-        self.assertEqual(release.call_count, (indicate.call_count + create.call_count))
+        self.assertEqual(
+            release.call_count,
+            (create.call_count + indicate.call_count),
+            "release count {0} != (create count {1} + indicate count {2})".format(
+                release.call_count, create.call_count, indicate.call_count
+            )
+        )
 
-    @patch('gssapi.oids.gss_release_oid_set', wraps=gssapi_h.gss_release_oid_set)
+    @patch('gssapi.oids.C.gss_release_oid_set', wraps=C.gss_release_oid_set)
     def test_release_all_mechs(self, mocked):
         allmechs = get_all_mechs()
-        backing_set = allmechs._oid_set
         onemech = allmechs[0]
         del allmechs
         self.assertEqual(mocked.call_count, 0)
         del onemech
         self.assertEqual(mocked.call_count, 1)
-        self.assertEqual(repr(mocked.call_args[0][1]), repr(byref(backing_set)))
 
-    @patch('gssapi.oids.gss_release_oid_set', wraps=gssapi_h.gss_release_oid_set)
+    @patch('gssapi.oids.C.gss_release_oid_set', wraps=C.gss_release_oid_set)
     def test_destructor(self, mocked):
         new_set = OIDSet()
-        backing_set = new_set._oid_set
         del new_set
         self.assertEqual(mocked.call_count, 1)
-        self.assertEqual(repr(mocked.call_args[0][1]), repr(byref(backing_set)))
 
-    @patch('gssapi.oids.gss_release_oid_set', wraps=gssapi_h.gss_release_oid_set)
+    @patch('gssapi.oids.C.gss_release_oid_set', wraps=C.gss_release_oid_set)
     def test_doublefree(self, mocked):
         new_set = OIDSet()
-        backing_set = new_set._oid_set
-        new_set._release()
-        new_set._release()
-        del new_set
+        _release_OID_set(new_set._oid_set)
+        _release_OID_set(new_set._oid_set)
         self.assertEqual(mocked.call_count, 1)
-        self.assertEqual(repr(mocked.call_args[0][1]), repr(byref(backing_set)))

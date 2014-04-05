@@ -2,17 +2,16 @@ from __future__ import absolute_import
 
 import re
 import sys
-from ctypes import byref, c_int, string_at, cast
 import struct
 from pyasn1.codec.ber import decoder
 
-from .headers.gssapi_h import (
-    GSS_C_NO_OID_SET, GSS_S_COMPLETE,
-    OM_uint32, gss_OID, gss_OID_desc, gss_OID_set,
-    gss_release_oid_set, gss_create_empty_oid_set, gss_test_oid_set_member,
-    gss_add_oid_set_member, gss_indicate_mechs
-)
-from .error import GSSCException
+from .headers import ffi, C, GSS_ERROR
+from .error import GSSCException, GSSException
+
+
+def _release_OID_set(oid_set):
+    if oid_set[0]:
+        C.gss_release_oid_set(ffi.new('OM_uint32[1]'), oid_set)
 
 
 def get_all_mechs():
@@ -20,9 +19,15 @@ def get_all_mechs():
     Return an :class:`OIDSet` of all the mechanisms supported by the underlying GSSAPI
     implementation.
     """
-    minor_status = OM_uint32()
-    mech_set = gss_OID_set()
-    gss_indicate_mechs(byref(minor_status), byref(mech_set))
+    minor_status = ffi.new('OM_uint32[1]')
+    mech_set = ffi.new('gss_OID_set[1]')
+    try:
+        retval = C.gss_indicate_mechs(minor_status, mech_set)
+        if GSS_ERROR(retval):
+            raise GSSCException(retval, minor_status[0])
+    except:
+        _release_OID_set(mech_set)
+        raise
     return OIDSet(oid_set=mech_set)
 
 
@@ -54,7 +59,7 @@ class OID(object):
 
     def __hash__(self):
         hsh = 31
-        for c in string_at(self._oid.elements, self._oid.length):
+        for c in ffi.buffer(self._oid.elements, self._oid.length):
             if sys.version_info >= (3,):
                 hsh = 101 * hsh + c
             else:
@@ -91,7 +96,7 @@ class OID(object):
     def __str__(self):
         tag = b'\x06'
         length = struct.pack('B', self._oid.length)
-        value = string_at(self._oid.elements, self._oid.length)
+        value = bytes(ffi.buffer(self._oid.elements, self._oid.length))
         return str(decoder.decode(tag + length + value)[0])
 
 
@@ -106,43 +111,55 @@ class OIDSet(object):
         """Wraps a gss_OID_set. This can be returned from methods like gss_inquire_cred
         where it shouldn't be modified by the caller, since it's immutable."""
         super(OIDSet, self).__init__()
-        self._oid_set = gss_OID_set()
 
         if not oid_set:
-            minor_status = OM_uint32()
-            retval = gss_create_empty_oid_set(byref(minor_status), byref(self._oid_set))
-            if retval != GSS_S_COMPLETE:
-                self._release()
-                raise GSSCException(retval, minor_status)
-        elif isinstance(oid_set, gss_OID_set):
-            self._oid_set = oid_set
+            self._oid_set = ffi.new('gss_OID_set[1]')
+            minor_status = ffi.new('OM_uint32[1]')
+            try:
+                retval = C.gss_create_empty_oid_set(minor_status, self._oid_set)
+                if GSS_ERROR(retval):
+                    raise GSSCException(retval, minor_status[0])
+                self._oid_set = ffi.gc(self._oid_set, _release_OID_set)
+            except:
+                _release_OID_set(self._oid_set)
+                raise
+        elif isinstance(oid_set, ffi.CData) and ffi.typeof(oid_set) == ffi.typeof('gss_OID_set[1]'):
+            self._oid_set = ffi.gc(oid_set, _release_OID_set)
         else:
-            raise TypeError("Expected a gss_OID_set, got " + str(type(oid_set)))
+            raise TypeError("Expected a gss_OID_set *, got " + str(type(oid_set)))
 
     def __contains__(self, other_oid):
-        if not self._oid_set or not hasattr(other_oid, '_oid'):
+        if not self._oid_set[0]:
+            return False
+        if not (
+            isinstance(other_oid, OID)
+            or (
+                isinstance(other_oid, ffi.CData)
+                and ffi.typeof(other_oid) == ffi.typeof('gss_OID_desc')
+            )
+        ):
             return False
 
-        minor_status = OM_uint32()
-        present = c_int()
-        gss_test_oid_set_member(
-            byref(minor_status), byref(other_oid._oid), self._oid_set, byref(present)
+        minor_status = ffi.new('OM_uint32[1]')
+        present = ffi.new('int[1]')
+        C.gss_test_oid_set_member(
+            minor_status, ffi.addressof(other_oid._oid), self._oid_set[0], present
         )
-        return bool(present)
+        return bool(present[0])
 
     def __len__(self):
-        if not self._oid_set:
+        if not self._oid_set[0]:
             return 0
         else:
-            return self._oid_set.contents.count
+            return self._oid_set[0].count
 
     def __getitem__(self, index):
         if index < 0:
             index = len(self) + index
-        if not self._oid_set or index < 0 or index >= self._oid_set.contents.count:
+        if not self._oid_set[0] or index < 0 or index >= self._oid_set[0].count:
             raise IndexError("Index out of range.")
 
-        return OID(self._oid_set.contents.elements[index], self)
+        return OID(self._oid_set[0].elements[index], self)
 
     @classmethod
     def singleton_set(cls, single_oid):
@@ -155,18 +172,20 @@ class OIDSet(object):
         :rtype: :class:`OIDSet`
         """
         new_set = cls()
+        oid_ptr = None
         if isinstance(single_oid, OID):
-            oid_ptr = byref(single_oid._oid)
-        elif isinstance(single_oid, gss_OID_desc):
-            oid_ptr = byref(single_oid)
-        elif isinstance(single_oid, gss_OID):
-            oid_ptr = single_oid
-        else:
-            raise TypeError("Expected an OID, got " + str(type(single_oid)))
+            oid_ptr = ffi.addressof(single_oid._oid)
+        elif isinstance(single_oid, ffi.CData):
+            if ffi.typeof(single_oid) == ffi.typeof('gss_OID_desc'):
+                oid_ptr = ffi.addressof(single_oid)
+            elif ffi.typeof(single_oid) == ffi.typeof('gss_OID'):
+                oid_ptr = single_oid
+        if oid_ptr is None:
+            raise TypeError("Expected a gssapi.oids.OID, got " + str(type(single_oid)))
 
-        minor_status = OM_uint32()
-        retval = gss_add_oid_set_member(byref(minor_status), oid_ptr, byref(new_set._oid_set))
-        if retval != GSS_S_COMPLETE:
+        minor_status = ffi.new('OM_uint32[1]')
+        retval = C.gss_add_oid_set_member(minor_status, oid_ptr, new_set._oid_set)
+        if retval != C.GSS_S_COMPLETE:
             raise GSSCException(retval, minor_status)
         return new_set
 
@@ -184,17 +203,6 @@ class OIDSet(object):
                 return True
         except TypeError:
             return False
-
-    def _release(self):
-        """Releases storage backing this OIDSet. After calling this method,
-        this OIDSet can no longer be used."""
-        if hasattr(self, '_oid_set') and self._oid_set:
-            minor_status = OM_uint32()
-            gss_release_oid_set(byref(minor_status), byref(self._oid_set))
-            self._oid_set = cast(GSS_C_NO_OID_SET, gss_OID_set)
-
-    def __del__(self):
-        self._release()
 
 
 class MutableOIDSet(OIDSet):
@@ -220,17 +228,21 @@ class MutableOIDSet(OIDSet):
         :param new_oid: the OID to add.
         :type new_oid: :class:`OID`
         """
-        if self._oid_set:
+        if self._oid_set[0]:
+            oid_ptr = None
             if isinstance(new_oid, OID):
-                oid_ptr = byref(new_oid._oid)
-            elif isinstance(new_oid, gss_OID_desc):
-                oid_ptr = byref(new_oid)
-            elif isinstance(new_oid, gss_OID):
-                oid_ptr = new_oid
-            else:
-                raise TypeError("Expected an OID, got " + str(type(new_oid)))
+                oid_ptr = ffi.addressof(new_oid._oid)
+            elif isinstance(new_oid, ffi.CData):
+                if ffi.typeof(new_oid) == ffi.typeof('gss_OID_desc'):
+                    oid_ptr = ffi.addressof(new_oid)
+                elif ffi.typeof(new_oid) == ffi.typeof('gss_OID'):
+                    oid_ptr = new_oid
+            if oid_ptr is None:
+                raise TypeError("Expected a gssapi.oids.OID, got " + str(type(new_oid)))
 
-            minor_status = OM_uint32()
-            retval = gss_add_oid_set_member(byref(minor_status), oid_ptr, byref(self._oid_set))
-            if retval != GSS_S_COMPLETE:
+            minor_status = ffi.new('OM_uint32[1]')
+            retval = C.gss_add_oid_set_member(minor_status, oid_ptr, self._oid_set)
+            if retval != C.GSS_S_COMPLETE:
                 raise GSSCException(retval, minor_status)
+        else:
+            raise GSSException("Cannot add a member to this OIDSet, its gss_OID_set is NULL!")

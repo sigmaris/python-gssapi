@@ -1,21 +1,14 @@
 from __future__ import absolute_import
 
-from ctypes import byref, string_at, cast, pointer
-
-from .headers.gssapi_h import (
-    GSS_C_GSS_CODE, GSS_C_MECH_CODE, GSS_C_NO_OID,
-    GSS_S_COMPLETE, GSS_S_BAD_MECH, GSS_S_BAD_STATUS,
-    OM_uint32, gss_buffer_desc, gss_OID,
-    gss_display_status, gss_release_buffer
-)
+from .headers import ffi, C
 
 
 def _buf_to_str(buf):
     """Converts a gss_buffer_desc containing a char * string to Python bytes"""
-    return string_at(buf.value, buf.length)
+    return bytes(ffi.buffer(buf.value, buf.length))
 
 
-def status_list(maj_status, min_status, status_type=GSS_C_GSS_CODE, mech_type=GSS_C_NO_OID):
+def status_list(maj_status, min_status, status_type=C.GSS_C_GSS_CODE, mech_type=C.GSS_C_NO_OID):
     """
     Creates a "friendly" error message from a GSS status code. This is used to create the
     :attr:`GSSCException.message` of a :class:`GSSCException`.
@@ -34,56 +27,54 @@ def status_list(maj_status, min_status, status_type=GSS_C_GSS_CODE, mech_type=GS
     from .oids import OID
 
     statuses = []
-    message_context = OM_uint32(0)
-    minor_status = OM_uint32()
+    message_context = ffi.new('OM_uint32[1]')
+    minor_status = ffi.new('OM_uint32[1]')
 
     if isinstance(mech_type, OID):
-        mech_type = pointer(mech_type._oid)  # OID._oid is type struct gss_OID_desc
-    elif (mech_type is GSS_C_NO_OID) or isinstance(mech_type, gss_OID):
-        mech_type = cast(mech_type, gss_OID)
-    else:
+        mech_type = ffi.addressof(mech_type._oid)  # OID._oid is type struct gss_OID_desc
+    elif (mech_type != C.GSS_C_NO_OID) and ffi.typeof(mech_type) != ffi.typeof('gss_OID'):
         raise TypeError(
             "Expected mech_type to be a gssapi.oids.OID or gss_OID, got {0}".format(type(mech_type))
         )
 
     while True:
-        status_buf = gss_buffer_desc()
+        status_buf = ffi.new('gss_buffer_desc[1]')
 
         try:
-            retval = gss_display_status(
-                byref(minor_status),
+            retval = C.gss_display_status(
+                minor_status,
                 maj_status,
                 status_type,
                 mech_type,
-                byref(message_context),
-                byref(status_buf)
+                message_context,
+                status_buf
             )
-            if retval == GSS_S_COMPLETE:
+            if retval == C.GSS_S_COMPLETE:
                 statuses.append("({0}) {1}.".format(
                     maj_status,
-                    _buf_to_str(status_buf).decode("utf-8", errors="replace")
+                    _buf_to_str(status_buf[0]).decode("utf-8", errors="replace")
                 ))
-            elif retval == GSS_S_BAD_MECH:
+            elif retval == C.GSS_S_BAD_MECH:
                 statuses.append("Unsupported mechanism type passed to GSSException")
                 break
-            elif retval == GSS_S_BAD_STATUS:
+            elif retval == C.GSS_S_BAD_STATUS:
                 statuses.append("Unrecognized status value passed to GSSException")
                 break
         finally:
-            gss_release_buffer(byref(minor_status), byref(status_buf))
+            C.gss_release_buffer(minor_status, status_buf)
 
-        if message_context.value == 0:
+        if message_context[0] == 0:
             break
 
     if min_status:
-        minor_status_msgs = status_list(min_status, 0, GSS_C_MECH_CODE, mech_type)
+        minor_status_msgs = status_list(min_status, 0, C.GSS_C_MECH_CODE, mech_type)
         if minor_status_msgs:
             statuses.append(b"Minor code:")
             statuses.extend(minor_status_msgs)
     return statuses
 
 
-def _status_to_str(maj_status, min_status, mech_type=GSS_C_NO_OID):
+def _status_to_str(maj_status, min_status, mech_type=C.GSS_C_NO_OID):
     return ' '.join(status_list(maj_status, min_status, mech_type=mech_type))
 
 
