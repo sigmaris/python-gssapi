@@ -7,14 +7,14 @@ import pwd
 import platform
 import socket
 
-from ctypes import byref
 from mock import patch
 
 from gssapi import (
     GSSException, Name, MechName, OID, C_NT_USER_NAME, C_NT_MACHINE_UID_NAME, C_NT_STRING_UID_NAME,
     C_NT_HOSTBASED_SERVICE, C_NT_EXPORT_NAME
 )
-from gssapi.headers import gssapi_h
+from gssapi.names import _release_gss_name_t
+from gssapi.bindings import C
 
 
 class NameTest(unittest.TestCase):
@@ -145,11 +145,11 @@ class KerberosNameTest(NameTest):
             name_exp = name_canon.export()
             name_imp = Name(name_exp, C_NT_EXPORT_NAME)
             self.assertIsInstance(name_imp, MechName)
-            self.assertEqual(name_imp, name_canon, "{0} != {1}".format(name_imp, name_canon))
+            self.assertEqual(name_imp, name_canon)
 
-    @patch('gssapi.names.gss_import_name', wraps=gssapi_h.gss_import_name)
-    @patch('gssapi.names.gss_canonicalize_name', wraps=gssapi_h.gss_canonicalize_name)
-    @patch('gssapi.names.gss_release_name', wraps=gssapi_h.gss_release_name)
+    @patch('gssapi.names.C.gss_import_name', wraps=C.gss_import_name)
+    @patch('gssapi.names.C.gss_canonicalize_name', wraps=C.gss_canonicalize_name)
+    @patch('gssapi.names.C.gss_release_name', wraps=C.gss_release_name)
     def test_matched_release(self, release, canonicalize, imprt):
         self.test_import_name()
         self.test_display_name()
@@ -158,12 +158,12 @@ class KerberosNameTest(NameTest):
         self.test_compare_canonicalized()
         self.assertEqual(release.call_count, (imprt.call_count + canonicalize.call_count))
 
-    @patch('gssapi.names.gss_release_name', wraps=gssapi_h.gss_release_name)
+    @patch('gssapi.names.C.gss_release_name', wraps=C.gss_release_name)
     def test_doublefree(self, mocked):
         name = Name("spam", C_NT_USER_NAME)
         backing_struct = name._name
-        name._release()
-        name._release()
+        _release_gss_name_t(backing_struct)
+        _release_gss_name_t(backing_struct)
         del name
         self.assertEqual(mocked.call_count, 1)
-        self.assertEqual(repr(mocked.call_args[0][1]), repr(byref(backing_struct)))
+        self.assertEqual(mocked.call_args[0][1], backing_struct)

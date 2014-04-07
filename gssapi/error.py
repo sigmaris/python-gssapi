@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from .headers import ffi, C
+from .bindings import ffi, C
 
 
 def _buf_to_str(buf):
@@ -31,8 +31,10 @@ def status_list(maj_status, min_status, status_type=C.GSS_C_GSS_CODE, mech_type=
     minor_status = ffi.new('OM_uint32[1]')
 
     if isinstance(mech_type, OID):
-        mech_type = ffi.addressof(mech_type._oid)  # OID._oid is type struct gss_OID_desc
-    elif (mech_type != C.GSS_C_NO_OID) and ffi.typeof(mech_type) != ffi.typeof('gss_OID'):
+        mech_type = ffi.addressof(mech_type._oid)  # OID._oid is type "struct gss_OID_desc"
+    elif mech_type == C.GSS_C_NO_OID:
+        mech_type = ffi.cast('gss_OID', C.GSS_C_NO_OID)
+    elif not isinstance(mech_type, ffi.CData) or ffi.typeof(mech_type) != ffi.typeof('gss_OID'):
         raise TypeError(
             "Expected mech_type to be a gssapi.oids.OID or gss_OID, got {0}".format(type(mech_type))
         )

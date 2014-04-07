@@ -1,19 +1,15 @@
 from __future__ import absolute_import
 
-from ctypes import byref, cast, c_char_p, c_void_p, c_int, string_at, sizeof, pointer
-
 import six
 
-from .headers.gssapi_h import (
-    GSS_C_NO_OID, GSS_C_NO_NAME, GSS_S_COMPLETE, GSS_ERROR, GSS_C_NT_USER_NAME,
-    GSS_C_NT_EXPORT_NAME,
-    OM_uint32, gss_buffer_desc, gss_name_t, gss_OID,
-    gss_import_name, gss_display_name, gss_canonicalize_name,
-    gss_compare_name, gss_export_name, gss_release_name, gss_release_buffer,
-    uid_t
-)
+from .bindings import C, ffi, GSS_ERROR
 from .error import GSSCException, GSSException, GSSMechException, _buf_to_str
 from .oids import OID
+
+
+def _release_gss_name_t(name):
+    if name[0]:
+        C.gss_release_name(ffi.new('OM_uint32[1]'), name)
 
 
 class _NameMeta(type):
@@ -25,8 +21,8 @@ class _NameMeta(type):
             name_type = args[1]
         else:
             name_type = None
-        if name_type == GSS_C_NT_EXPORT_NAME:
-            mech_name = MechName(gss_name_t(), GSS_C_NO_OID)
+        if name_type == C.GSS_C_NT_EXPORT_NAME:
+            mech_name = MechName(None, C.GSS_C_NO_OID)
             mech_name._import_name(*args, **kwargs)
             return mech_name
         else:
@@ -45,47 +41,49 @@ class Name(object):
     :type name_type: `gssapi.C_NT_*` constant or :class:`~gssapi.oids.OID`
     """
 
-    def __init__(self, name, name_type=GSS_C_NO_OID):
+    def __init__(self, name, name_type=C.GSS_C_NO_OID):
         super(Name, self).__init__()
 
-        if type(name) == gss_name_t:
+        if isinstance(name, ffi.CData) and ffi.typeof(name) == ffi.typeof('gss_name_t[1]'):
             # Break out early, used for internal name construction without import
-            self._name = name
+            self._name = ffi.gc(name, _release_gss_name_t)  # take ownership for GC purposes
             return
         else:
-            self._name = gss_name_t()
+            self._name = ffi.new('gss_name_t[1]')
             self._import_name(name, name_type)
 
     def _import_name(self, name, name_type):
-        minor_status = OM_uint32()
+        minor_status = ffi.new('OM_uint32[1]')
 
-        name_buffer = gss_buffer_desc()
+        name_buffer = ffi.new('gss_buffer_desc[1]')
         if isinstance(name, bytes):
-            name_buffer.length = len(name)
-            name_buffer.value = cast(c_char_p(name), c_void_p)
+            name_buffer[0].length = len(name)
+            c_str_name = ffi.new('char[]', name)
+            name_buffer[0].value = c_str_name
         elif isinstance(name, six.string_types):
             name_buffer.length = len(name)
-            name_buffer.value = cast(c_char_p(name.encode()), c_void_p)
+            c_str_name = ffi.new('char[]', name.encode())
+            name_buffer.value = c_str_name
         elif isinstance(name, six.integer_types):
-            c_name = uid_t(name)
-            name_buffer.length = sizeof(c_name)
-            name_buffer.value = cast(pointer(c_name), c_void_p)
+            c_name = ffi.new('uid_t[1]', (name,))
+            name_buffer.length = ffi.sizeof('uid_t')
+            name_buffer.value = c_name
         else:
             raise TypeError("Expected a string or integer, got {0}".format(type(name)))
 
         if isinstance(name_type, OID):
-            name_type = byref(name_type._oid)
-        elif type(name_type) == type(GSS_C_NT_USER_NAME) or name_type == GSS_C_NO_OID:
-            name_type = cast(name_type, gss_OID)
-        else:
+            name_type = ffi.addressof(name_type._oid)
+        elif name_type == C.GSS_C_NO_OID:
+            name_type = ffi.cast('gss_OID', name_type)
+        elif not isinstance(name_type, ffi.CData) or ffi.typeof(name_type) != ffi.typeof('gss_OID'):
             raise TypeError("Expected an OID or GSS_C_NT_* constant, got {0}".format(type(name_type)))
 
-        retval = gss_import_name(
-            byref(minor_status), byref(name_buffer), name_type, byref(self._name)
+        retval = C.gss_import_name(
+            minor_status, name_buffer, name_type, self._name
         )
-        if retval != GSS_S_COMPLETE:
-            self._release()
-            raise GSSCException(retval, minor_status)
+        self._name = ffi.gc(self._name, _release_gss_name_t)
+        if GSS_ERROR(retval):
+            raise GSSCException(retval, minor_status[0])
 
     def __str__(self):
         return self._display().decode()
@@ -98,52 +96,45 @@ class Name(object):
         return self._display(with_type=True)[1]
 
     def _display(self, with_type=False):
-        minor_status = OM_uint32()
-        out_buffer = gss_buffer_desc()
+        minor_status = ffi.new('OM_uint32[1]')
+        out_buffer = ffi.new('gss_buffer_desc[1]')
         if with_type:
-            output_name_type = gss_OID()
-            output_name_type_param = byref(output_name_type)
+            output_name_type = ffi.new('gss_OID[1]')
         else:
-            output_name_type = None
-            output_name_type_param = None
+            output_name_type = ffi.NULL
 
         try:
-            retval = gss_display_name(
-                byref(minor_status), self._name, byref(out_buffer), output_name_type_param
+            retval = C.gss_display_name(
+                minor_status, self._name[0], out_buffer, output_name_type
             )
-            if retval != GSS_S_COMPLETE:
-                raise GSSCException(retval, minor_status)
+            if GSS_ERROR(retval):
+                raise GSSCException(retval, minor_status[0])
             if with_type:
-                return _buf_to_str(out_buffer), OID(output_name_type.contents)
+                return _buf_to_str(out_buffer[0]), OID(output_name_type[0][0])
             else:
-                return _buf_to_str(out_buffer)
+                return _buf_to_str(out_buffer[0])
         finally:
-            gss_release_buffer(byref(minor_status), byref(out_buffer))
+            if out_buffer[0].length != 0:
+                C.gss_release_buffer(minor_status, out_buffer)
 
     def __ne__(self, other):
         return not self.__eq__(other)
 
     def __eq__(self, other):
         if isinstance(other, Name):
-            minor_status = OM_uint32()
-            name_equal = c_int()
-            retval = gss_compare_name(
-                byref(minor_status),
-                self._name,
-                other._name,
-                byref(name_equal)
+            minor_status = ffi.new('OM_uint32[1]')
+            name_equal = ffi.new('int[1]')
+            retval = C.gss_compare_name(
+                minor_status,
+                self._name[0],
+                other._name[0],
+                name_equal
             )
-            if retval != GSS_S_COMPLETE:
-                raise GSSCException(retval, minor_status)
-            return bool(name_equal)
+            if GSS_ERROR(retval):
+                raise GSSCException(retval, minor_status[0])
+            return bool(name_equal[0])
         else:
             return False
-
-    def _release(self):
-        if hasattr(self, '_name') and self._name:
-            minor_status = OM_uint32()
-            gss_release_name(byref(minor_status), byref(self._name))
-            self._name = cast(GSS_C_NO_NAME, gss_name_t)
 
     def canonicalize(self, mech):
         """
@@ -163,21 +154,17 @@ class Name(object):
         else:
             raise TypeError("Expected an OID, got " + str(type(mech)))
 
-        minor_status = OM_uint32()
-        out_name = gss_name_t()
+        minor_status = ffi.new('OM_uint32[1]')
+        out_name = ffi.new('gss_name_t[1]')
         try:
-            retval = gss_canonicalize_name(
-                byref(minor_status), self._name, byref(oid), byref(out_name)
+            retval = C.gss_canonicalize_name(
+                minor_status, self._name[0], ffi.addressof(oid), out_name
             )
-            if retval != GSS_S_COMPLETE:
-                raise GSSCException(retval, minor_status)
+            if GSS_ERROR(retval):
+                raise GSSCException(retval, minor_status[0])
             return MechName(out_name, mech)
         except:
-            if out_name:
-                gss_release_name(byref(minor_status), byref(out_name))
-
-    def __del__(self):
-        self._release()
+            C.gss_release_name(minor_status, out_name)
 
 # Add metaclass in Python 2/3 compatible way:
 Name = six.add_metaclass(_NameMeta)(Name)
@@ -196,7 +183,10 @@ class MechName(Name):
     def __init__(self, name, mech_type):
         """Don't construct instances of this class directly; This object will acquire
         ownership of 'name', and release the associated storage when it is deleted."""
-        self._name = name
+        if isinstance(name, ffi.CData) and ffi.typeof(name) == ffi.typeof('gss_name_t[1]'):
+            self._name = ffi.gc(name, _release_gss_name_t)
+        else:
+            self._name = ffi.new('gss_name_t[1]')
         self._mech_type = mech_type
 
     def canonicalize(self, mech):
@@ -212,22 +202,21 @@ class MechName(Name):
         :returns: an exported bytestring representation of this mechanism name
         :rtype: bytes
         """
-        minor_status = OM_uint32()
-        output_buffer = gss_buffer_desc()
-        retval = gss_export_name(
-            byref(minor_status),
-            self._name,
-            byref(output_buffer)
+        minor_status = ffi.new('OM_uint32[1]')
+        output_buffer = ffi.new('gss_buffer_desc[1]')
+        retval = C.gss_export_name(
+            minor_status,
+            self._name[0],
+            output_buffer
         )
         try:
             if GSS_ERROR(retval):
                 if minor_status and self._mech_type:
-                    raise GSSMechException(retval, minor_status, self._mech_type)
+                    raise GSSMechException(retval, minor_status[0], self._mech_type)
                 else:
-                    raise GSSCException(retval, minor_status)
+                    raise GSSCException(retval, minor_status[0])
 
-            output = string_at(output_buffer.value, output_buffer.length)
-            return output
+            return _buf_to_str(output_buffer[0])
         finally:
-            if output_buffer.length != 0:
-                gss_release_buffer(byref(minor_status), byref(output_buffer))
+            if output_buffer[0].length != 0:
+                C.gss_release_buffer(minor_status, output_buffer)
