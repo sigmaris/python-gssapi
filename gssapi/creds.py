@@ -1,17 +1,14 @@
 from __future__ import absolute_import
 
-from ctypes import cast, byref, c_uint
-
-from .headers.gssapi_h import (
-    GSS_C_NO_NAME, GSS_C_INDEFINITE, GSS_C_NO_OID_SET, GSS_C_NO_CREDENTIAL,
-    GSS_ERROR, GSS_C_INITIATE, GSS_C_ACCEPT, GSS_C_BOTH,
-    OM_uint32, gss_cred_id_t, gss_name_t, gss_OID_set, gss_cred_usage_t,
-    gss_acquire_cred, gss_inquire_cred,
-    gss_release_cred, gss_release_oid_set, gss_release_name
-)
+from .bindings import C, ffi, GSS_ERROR
 from .error import GSSCException
 from .names import Name
 from .oids import OIDSet
+
+
+def _release_gss_cred_id_t(cred):
+    if cred[0]:
+        C.gss_release_cred(ffi.new('OM_uint32[1]'), cred)
 
 
 class Credential(object):
@@ -36,61 +33,59 @@ class Credential(object):
         credential.
     """
 
-    def __init__(self, desired_name=GSS_C_NO_NAME, lifetime=GSS_C_INDEFINITE,
-                 desired_mechs=GSS_C_NO_OID_SET, usage=GSS_C_BOTH):
+    def __init__(self, desired_name=C.GSS_C_NO_NAME, lifetime=C.GSS_C_INDEFINITE,
+                 desired_mechs=C.GSS_C_NO_OID_SET, usage=C.GSS_C_BOTH):
         super(Credential, self).__init__()
 
         self._mechs = None
-        if type(desired_name) == gss_cred_id_t:
+        if isinstance(desired_name, ffi.CData) and ffi.typeof(desired_name) == ffi.typeof('gss_cred_id_t[1]'):
             # wrapping an existing gss_cred_id_t, exit early
-            self._cred = desired_name
+            self._cred = ffi.gc(desired_name, _release_gss_cred_id_t)
             return
         else:
-            self._cred = gss_cred_id_t()
+            self._cred = ffi.new('gss_cred_id_t[1]')
 
-        minor_status = OM_uint32()
+        minor_status = ffi.new('OM_uint32[1]')
 
         if isinstance(desired_name, Name):
-            desired_name = desired_name._name
-        elif desired_name == GSS_C_NO_NAME:
-            desired_name = cast(desired_name, gss_name_t)
+            desired_name = desired_name._name[0]
+        elif desired_name == C.GSS_C_NO_NAME:
+            desired_name = ffi.cast('gss_name_t', desired_name)
         else:
             raise TypeError(
                 "Expected a Name object or C_NO_NAME, got {0}.".format(type(desired_name))
             )
 
         if isinstance(desired_mechs, OIDSet):
-            desired_mechs = desired_mechs._oid_set
-        elif desired_mechs == GSS_C_NO_OID_SET:
-            desired_mechs = cast(desired_mechs, gss_OID_set)
+            desired_mechs = desired_mechs._oid_set[0]
+        elif desired_mechs == C.GSS_C_NO_OID_SET:
+            desired_mechs = ffi.cast('gss_OID_set', desired_mechs)
         else:
             raise TypeError(
                 "Expected an OIDSet object or C_NO_OID_SET, got {0}.".format(type(desired_mechs))
             )
 
-        actual_mechs = gss_OID_set()
-        time_rec = c_uint()
+        actual_mechs = ffi.new('gss_OID_set[1]')
+        time_rec = ffi.new('OM_uint32[1]')
 
-        retval = gss_acquire_cred(
-            byref(minor_status),
+        retval = C.gss_acquire_cred(
+            minor_status,
             desired_name,
-            OM_uint32(lifetime),
+            ffi.cast('OM_uint32', lifetime),
             desired_mechs,
-            gss_cred_usage_t(usage),
-            byref(self._cred),
-            byref(actual_mechs),
-            byref(time_rec)
+            ffi.cast('gss_cred_usage_t', usage),
+            self._cred,
+            actual_mechs,
+            time_rec
         )
-        try:
-            if GSS_ERROR(retval):
-                raise GSSCException(retval, minor_status)
+        self._cred = ffi.gc(self._cred, _release_gss_cred_id_t)
 
-            self._mechs = OIDSet(actual_mechs)
-        except:
-            if actual_mechs:
-                gss_release_oid_set(byref(minor_status), byref(actual_mechs))
-            self._release()
-            raise
+        if GSS_ERROR(retval):
+            if actual_mechs[0]:
+                C.gss_release_oid_set(minor_status, actual_mechs)
+            raise GSSCException(retval, minor_status[0])
+
+        self._mechs = OIDSet(actual_mechs)
 
     @property
     def name(self):
@@ -128,48 +123,39 @@ class Credential(object):
         return self._mechs
 
     def _inquire(self, get_name, get_lifetime, get_usage, get_mechs):
-        minor_status = OM_uint32()
+        minor_status = ffi.new('OM_uint32[1]')
 
-        name = gss_name_t()
-        lifetime = OM_uint32()
-        usage = gss_cred_usage_t()
-        mechs = gss_OID_set()
+        name = ffi.new('gss_name_t[1]') if get_name else ffi.NULL
+        lifetime = ffi.new('OM_uint32[1]') if get_lifetime else ffi.NULL
+        usage = ffi.new('gss_cred_usage_t[1]') if get_usage else ffi.NULL
+        mechs = ffi.new('gss_OID_set[1]') if get_mechs else ffi.NULL
 
-        retval = gss_inquire_cred(
-            byref(minor_status),
-            self._cred,
-            byref(name) if get_name else None,
-            byref(lifetime) if get_lifetime else None,
-            byref(usage) if get_usage else None,
-            byref(mechs) if get_mechs else None
+        retval = C.gss_inquire_cred(
+            minor_status,
+            self._cred[0],
+            name,
+            lifetime,
+            usage,
+            mechs
         )
 
         try:
             if GSS_ERROR(retval):
-                raise GSSCException(retval, minor_status)
-            if get_name:
-                nameobj = Name(name)
-            if get_mechs:
-                mechsobj = OIDSet(mechs)
-            return (
-                nameobj if get_name else None,
-                lifetime.value if get_lifetime else None,
-                usage.value if get_usage else None,
-                mechsobj if get_mechs else None
-            )
-
+                raise GSSCException(retval, minor_status[0])
         except:
-            if name:
-                gss_release_name(byref(minor_status), byref(name))
-            if mechs:
-                gss_release_oid_set(byref(minor_status), byref(mechs))
+            if get_name and name[0]:
+                C.gss_release_name(minor_status, name)
+            if get_mechs and mechs[0]:
+                C.gss_release_oid_set(minor_status, mechs)
             raise
 
-    def _release(self):
-        if hasattr(self, '_cred') and self._cred:
-            minor_status = OM_uint32()
-            gss_release_cred(byref(minor_status), byref(self._cred))
-            self._cred = cast(GSS_C_NO_CREDENTIAL, gss_cred_id_t)
-
-    def __del__(self):
-        self._release()
+        if get_name:
+            nameobj = Name(name)
+        if get_mechs:
+            mechsobj = OIDSet(mechs)
+        return (
+            nameobj if get_name else None,
+            lifetime[0] if get_lifetime else None,
+            usage[0] if get_usage else None,
+            mechsobj if get_mechs else None
+        )
