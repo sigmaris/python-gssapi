@@ -1,16 +1,7 @@
-/*
- * We should really look for the smallest 32bit integer type,
- * but this will do for prototyping on a 32-bit OS
-*/
+/* The C API from RFC2744, converted to be usable by CFFI */
+
 typedef uint32_t gss_uint32;
 typedef uint32_t OM_uint32;
-
-/*
- * Now define the three implementation-dependent types.
- */
-typedef ... *gss_ctx_id_t;
-typedef ... *gss_cred_id_t;
-typedef ... *gss_name_t;
 
 /*
  * Assumes that the X/Open definitions aren't used!
@@ -286,6 +277,7 @@ extern gss_OID const GSS_C_NT_EXPORT_NAME;
 #define GSS_S_CREDENTIALS_EXPIRED  ...
 #define GSS_S_CONTEXT_EXPIRED      ...
 #define GSS_S_FAILURE              ...
+#define GSS_S_CRED_UNAVAIL         ...
 #define GSS_S_BAD_QOP              ...
 #define GSS_S_UNAUTHORIZED         ...
 #define GSS_S_UNAVAILABLE          ...

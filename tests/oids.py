@@ -6,7 +6,7 @@ from mock import patch
 
 from gssapi import get_all_mechs, OID, OIDSet, MutableOIDSet
 from gssapi.oids import _release_OID_set
-from gssapi.headers import ffi, C
+from gssapi.bindings import ffi, C
 
 
 class OIDTest(unittest.TestCase):
