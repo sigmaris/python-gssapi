@@ -1,11 +1,6 @@
 from __future__ import absolute_import
 
-from .bindings import ffi, C
-
-
-def _buf_to_str(buf):
-    """Converts a gss_buffer_desc containing a char * string to Python bytes"""
-    return bytes(ffi.buffer(buf.value, buf.length))
+from .bindings import ffi, C, _buf_to_str
 
 
 def status_list(maj_status, min_status, status_type=C.GSS_C_GSS_CODE, mech_type=C.GSS_C_NO_OID):

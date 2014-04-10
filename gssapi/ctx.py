@@ -1,25 +1,22 @@
 from __future__ import absolute_import
 
-from ctypes import cast, byref, c_char_p, c_void_p, string_at, c_int
 import functools
 import operator
 
-from .headers.gssapi_h import (
-    GSS_C_NO_CREDENTIAL, GSS_C_NO_OID, GSS_C_NO_CHANNEL_BINDINGS, GSS_C_NO_BUFFER,
-    GSS_C_INTEG_FLAG, GSS_C_CONF_FLAG, GSS_C_PROT_READY_FLAG, GSS_C_QOP_DEFAULT, GSS_C_REPLAY_FLAG,
-    GSS_C_SEQUENCE_FLAG, GSS_C_MUTUAL_FLAG, GSS_C_ANON_FLAG, GSS_C_DELEG_FLAG, GSS_C_TRANS_FLAG,
-    GSS_S_CONTINUE_NEEDED, GSS_ERROR,
-    OM_uint32, gss_OID, gss_buffer_desc, gss_buffer_t, gss_ctx_id_t, gss_name_t, gss_cred_id_t,
-    gss_qop_t, gss_channel_bindings_t,
-    gss_init_sec_context, gss_accept_sec_context, gss_import_sec_context, gss_export_sec_context,
-    gss_inquire_context, gss_get_mic, gss_verify_mic, gss_wrap, gss_unwrap, gss_wrap_size_limit,
-    gss_delete_sec_context, gss_release_buffer,
-    gss_release_cred, gss_release_name
-)
+from .bindings import ffi, C, GSS_ERROR, _buf_to_str
 from .error import GSSCException, GSSException, GSSMechException
 from .names import MechName, Name
 from .oids import OID
 from .creds import Credential
+
+
+def _release_gss_ctx_id_t(context):
+    if context[0]:
+        C.gss_delete_sec_context(
+            ffi.new('OM_unit32[1]'),
+            context,
+            ffi.cast('gss_buffer_t', C.GSS_C_NO_BUFFER)
+        )
 
 
 class Context(object):
@@ -50,7 +47,7 @@ class Context(object):
         bitwise comparisons on this attribute.
     """
     def __init__(self):
-        self._ctx = gss_ctx_id_t()
+        self._ctx = ffi.new('gss_ctx_id_t[1]')
         self._reset_flags()
 
     def _reset_flags(self):
@@ -70,9 +67,9 @@ class Context(object):
         message integrity code (MIC), which the peer application can verify.
         """
         return (
-            self.flags & GSS_C_INTEG_FLAG
+            self.flags & C.GSS_C_INTEG_FLAG
         ) and (
-            self.established or (self.flags & GSS_C_PROT_READY_FLAG)
+            self.established or (self.flags & C.GSS_C_PROT_READY_FLAG)
         )
 
     @property
@@ -84,9 +81,9 @@ class Context(object):
         encrypt messages sent to the peer application.
         """
         return (
-            self.flags & GSS_C_CONF_FLAG
+            self.flags & C.GSS_C_CONF_FLAG
         ) and (
-            self.established or (self.flags & GSS_C_PROT_READY_FLAG)
+            self.established or (self.flags & C.GSS_C_PROT_READY_FLAG)
         )
 
     @property
@@ -97,9 +94,9 @@ class Context(object):
         :meth:`get_mic` and :meth:`wrap`. False if replay detection cannot be used.
         """
         return (
-            self.flags & GSS_C_REPLAY_FLAG
+            self.flags & C.GSS_C_REPLAY_FLAG
         ) and (
-            self.established or (self.flags & GSS_C_PROT_READY_FLAG)
+            self.established or (self.flags & C.GSS_C_PROT_READY_FLAG)
         )
 
     @property
@@ -110,9 +107,9 @@ class Context(object):
         protected by :meth:`get_mic` and :meth:`wrap`. False if OOS detection cannot be used.
         """
         return (
-            self.flags & GSS_C_SEQUENCE_FLAG
+            self.flags & C.GSS_C_SEQUENCE_FLAG
         ) and (
-            self.established or (self.flags & GSS_C_PROT_READY_FLAG)
+            self.established or (self.flags & C.GSS_C_PROT_READY_FLAG)
         )
 
     @property
@@ -121,7 +118,7 @@ class Context(object):
         After :meth:`step` has been called, this property will be set to
         True if mutual authentication was negotiated, False otherwise.
         """
-        return bool(self.flags & GSS_C_MUTUAL_FLAG)
+        return bool(self.flags & C.GSS_C_MUTUAL_FLAG)
 
     @property
     def initiator_is_anonymous(self):
@@ -132,7 +129,7 @@ class Context(object):
         :attr:`~AcceptContext.peer_name` property of the :class:`AcceptContext` will be an
         anonymous internal name.
         """
-        return bool(self.flags & GSS_C_ANON_FLAG)
+        return bool(self.flags & C.GSS_C_ANON_FLAG)
 
     @property
     def is_transferable(self):
@@ -140,9 +137,9 @@ class Context(object):
         True if the context can be transferred between processes using :meth:`export` and
         :meth:`imprt`, False otherwise.
         """
-        return bool(self.flags & GSS_C_TRANS_FLAG)
+        return bool(self.flags & C.GSS_C_TRANS_FLAG)
 
-    def get_mic(self, message, qop_req=GSS_C_QOP_DEFAULT):
+    def get_mic(self, message, qop_req=C.GSS_C_QOP_DEFAULT):
         """
         Calculates a cryptographic message integrity code (MIC) over an application message, and
         returns that MIC in a token. This is in contrast to :meth:`wrap` which calculates a MIC
@@ -155,35 +152,36 @@ class Context(object):
         :returns: A MIC for the message calculated using this security context's cryptographic keys
         :rtype: bytes
         """
-        if not (self.flags & GSS_C_INTEG_FLAG):
+        if not (self.flags & C.GSS_C_INTEG_FLAG):
             raise GSSException("No integrity protection negotiated.")
-        if not (self.established or (self.flags & GSS_C_PROT_READY_FLAG)):
+        if not (self.established or (self.flags & C.GSS_C_PROT_READY_FLAG)):
             raise GSSException("Protection not yet ready.")
 
-        minor_status = OM_uint32()
-        output_token_buffer = gss_buffer_desc()
-        message_buffer = gss_buffer_desc()
-        message_buffer.length = len(message)
-        message_buffer.value = cast(c_char_p(message), c_void_p)
-        retval = gss_get_mic(
-            byref(minor_status),
-            self._ctx,
-            gss_qop_t(qop_req),
-            byref(message_buffer),
-            byref(output_token_buffer)
+        minor_status = ffi.new('OM_uint32[1]')
+        output_token_buffer = ffi.new('gss_buffer_desc[1]')
+        message_buffer = ffi.new('gss_buffer_desc[1]')
+        message_buffer[0].length = len(message)
+        c_str_message = ffi.new('char[]', message)
+        message_buffer[0].value = c_str_message
+        retval = C.gss_get_mic(
+            minor_status,
+            self._ctx[0],
+            ffi.cast('gss_qop_t', qop_req),
+            message_buffer,
+            output_token_buffer
         )
         try:
             if GSS_ERROR(retval):
-                if minor_status and self.mech_type:
-                    raise GSSMechException(retval, minor_status, self.mech_type)
+                if minor_status[0] and self.mech_type:
+                    raise GSSMechException(retval, minor_status[0], self.mech_type)
                 else:
-                    raise GSSCException(retval, minor_status)
+                    raise GSSCException(retval, minor_status[0])
 
-            output_token = string_at(output_token_buffer.value, output_token_buffer.length)
+            output_token = _buf_to_str(output_token_buffer[0])
             return output_token
         finally:
-            if output_token_buffer.length != 0:
-                gss_release_buffer(byref(minor_status), byref(output_token_buffer))
+            if output_token_buffer[0].length != 0:
+                C.gss_release_buffer(minor_status, output_token_buffer)
 
     def verify_mic(self, message, mic):
         """
@@ -199,35 +197,37 @@ class Context(object):
         :raises: GSSException if :attr:`integrity_negotiated` is false, or if the verification
             fails indicating the message was modified
         """
-        if not (self.flags & GSS_C_INTEG_FLAG):
+        if not (self.flags & C.GSS_C_INTEG_FLAG):
             raise GSSException("No integrity protection negotiated.")
-        if not (self.established or (self.flags & GSS_C_PROT_READY_FLAG)):
+        if not (self.established or (self.flags & C.GSS_C_PROT_READY_FLAG)):
             raise GSSException("Protection not yet ready.")
 
-        minor_status = OM_uint32()
-        message_buffer = gss_buffer_desc()
-        message_buffer.length = len(message)
-        message_buffer.value = cast(c_char_p(message), c_void_p)
-        mic_buffer = gss_buffer_desc()
-        mic_buffer.length = len(mic)
-        mic_buffer.value = cast(c_char_p(mic), c_void_p)
-        qop_state = gss_qop_t()
+        minor_status = ffi.new('OM_uint32[1]')
+        message_buffer = ffi.new('gss_buffer_desc[1]')
+        message_buffer[0].length = len(message)
+        c_str_message = ffi.new('char[]', message)
+        message_buffer[0].value = c_str_message
+        mic_buffer = ffi.new('gss_buffer_desc[1]')
+        mic_buffer[0].length = len(mic)
+        c_str_mic = ffi.new('char[]', mic)
+        mic_buffer[0].value = c_str_mic
+        qop_state = ffi.new('gss_qop_t[1]')
 
-        retval = gss_verify_mic(
-            byref(minor_status),
-            self._ctx,
-            byref(message_buffer),
-            byref(mic_buffer),
-            byref(qop_state)
+        retval = C.gss_verify_mic(
+            minor_status,
+            self._ctx[0],
+            message_buffer,
+            mic_buffer,
+            qop_state
         )
         if GSS_ERROR(retval):
-            if minor_status and self.mech_type:
-                raise GSSMechException(retval, minor_status, self.mech_type)
+            if minor_status[0] and self.mech_type:
+                raise GSSMechException(retval, minor_status[0], self.mech_type)
             else:
-                raise GSSCException(retval, minor_status)
-        return qop_state.value
+                raise GSSCException(retval, minor_status[0])
+        return qop_state[0]
 
-    def wrap(self, message, conf_req=True, qop_req=GSS_C_QOP_DEFAULT):
+    def wrap(self, message, conf_req=True, qop_req=C.GSS_C_QOP_DEFAULT):
         """
         Wraps a message with a message integrity code, and if `conf_req` is True, encrypts the
         message. The message can be decrypted and the MIC verified by the peer by passing the
@@ -244,43 +244,44 @@ class Context(object):
             confidentiality protection is not available
             (:attr:`confidentiality_negotiated` is False)
         """
-        if not (self.flags & GSS_C_INTEG_FLAG):
+        if not (self.flags & C.GSS_C_INTEG_FLAG):
             raise GSSException("No integrity protection negotiated.")
-        if (conf_req and not (self.flags & GSS_C_CONF_FLAG)):
+        if (conf_req and not (self.flags & C.GSS_C_CONF_FLAG)):
             raise GSSException("No confidentiality protection negotiated.")
-        if not (self.established or (self.flags & GSS_C_PROT_READY_FLAG)):
+        if not (self.established or (self.flags & C.GSS_C_PROT_READY_FLAG)):
             raise GSSException("Protection not yet ready.")
 
-        minor_status = OM_uint32()
-        output_token_buffer = gss_buffer_desc()
-        message_buffer = gss_buffer_desc()
-        message_buffer.length = len(message)
-        message_buffer.value = cast(c_char_p(message), c_void_p)
-        conf_state = c_int()
+        minor_status = ffi.new('OM_uint32[1]')
+        output_token_buffer = ffi.new('gss_buffer_desc[1]')
+        message_buffer = ffi.new('gss_buffer_desc[1]')
+        message_buffer[0].length = len(message)
+        c_str_message = ffi.new('char[]', message)
+        message_buffer[0].value = c_str_message
+        conf_state = ffi.new('int[1]')
 
-        retval = gss_wrap(
-            byref(minor_status),
-            self._ctx,
-            c_int(conf_req),
-            gss_qop_t(qop_req),
-            byref(message_buffer),
-            byref(conf_state),
-            byref(output_token_buffer)
+        retval = C.gss_wrap(
+            minor_status,
+            self._ctx[0],
+            ffi.cast('int', conf_req),
+            ffi.cast('gss_qop_t', qop_req),
+            message_buffer,
+            conf_state,
+            output_token_buffer
         )
         try:
             if GSS_ERROR(retval):
-                if minor_status and self.mech_type:
-                    raise GSSMechException(retval, minor_status, self.mech_type)
+                if minor_status[0] and self.mech_type:
+                    raise GSSMechException(retval, minor_status[0], self.mech_type)
                 else:
-                    raise GSSCException(retval, minor_status)
+                    raise GSSCException(retval, minor_status[0])
 
-            output_token = string_at(output_token_buffer.value, output_token_buffer.length)
-            if conf_req and not conf_state.value:
+            output_token = _buf_to_str(output_token_buffer[0])
+            if conf_req and not conf_state[0]:
                 raise GSSException("No confidentiality protection.")
             return output_token
         finally:
-            if output_token_buffer.length != 0:
-                gss_release_buffer(byref(minor_status), byref(output_token_buffer))
+            if output_token_buffer[0].length != 0:
+                C.gss_release_buffer(minor_status, output_token_buffer)
 
     def unwrap(self, message, conf_req=True, qop_req=None):
         """
@@ -297,45 +298,46 @@ class Context(object):
             (`conf_req` was True) but the message did not have confidentiality protection applied
             (was not encrypted).
         """
-        if not (self.flags & GSS_C_INTEG_FLAG):
+        if not (self.flags & C.GSS_C_INTEG_FLAG):
             raise GSSException("No integrity protection negotiated.")
-        if not (self.established or (self.flags & GSS_C_PROT_READY_FLAG)):
+        if not (self.established or (self.flags & C.GSS_C_PROT_READY_FLAG)):
             raise GSSException("Protection not yet ready.")
 
-        minor_status = OM_uint32()
-        output_buffer = gss_buffer_desc()
-        message_buffer = gss_buffer_desc()
-        message_buffer.length = len(message)
-        message_buffer.value = cast(c_char_p(message), c_void_p)
-        conf_state = c_int()
-        qop_state = gss_qop_t()
+        minor_status = ffi.new('OM_uint32[1]')
+        output_buffer = ffi.new('gss_buffer_desc[1]')
+        message_buffer = ffi.new('gss_buffer_desc[1]')
+        message_buffer[0].length = len(message)
+        c_str_message = ffi.new('char[]', message)
+        message_buffer[0].value = c_str_message
+        conf_state = ffi.new('int[1]')
+        qop_state = ffi.new('gss_qop_t[1]')
 
-        retval = gss_unwrap(
-            byref(minor_status),
-            self._ctx,
-            byref(message_buffer),
-            byref(output_buffer),
-            byref(conf_state),
-            byref(qop_state)
+        retval = C.gss_unwrap(
+            minor_status,
+            self._ctx[0],
+            message_buffer,
+            output_buffer,
+            conf_state,
+            qop_state
         )
         try:
             if GSS_ERROR(retval):
-                if minor_status and self.mech_type:
-                    raise GSSMechException(retval, minor_status, self.mech_type)
+                if minor_status[0] and self.mech_type:
+                    raise GSSMechException(retval, minor_status[0], self.mech_type)
                 else:
-                    raise GSSCException(retval, minor_status)
+                    raise GSSCException(retval, minor_status[0])
 
-            output = string_at(output_buffer.value, output_buffer.length)
-            if conf_req and not conf_state.value:
+            output = _buf_to_str(output_buffer[0])
+            if conf_req and not conf_state[0]:
                 raise GSSException("No confidentiality protection.")
-            if qop_req is not None and qop_req != qop_state.value:
-                raise GSSException("QOP {0} does not match required value {1}.".format(qop_state.value, qop_req))
+            if qop_req is not None and qop_req != qop_state[0]:
+                raise GSSException("QOP {0} does not match required value {1}.".format(qop_state[0], qop_req))
             return output
         finally:
-            if output_buffer.length != 0:
-                gss_release_buffer(byref(minor_status), byref(output_buffer))
+            if output_buffer[0].length != 0:
+                C.gss_release_buffer(minor_status, output_buffer)
 
-    def get_wrap_size_limit(self, output_size, conf_req=True, qop_req=GSS_C_QOP_DEFAULT):
+    def get_wrap_size_limit(self, output_size, conf_req=True, qop_req=C.GSS_C_QOP_DEFAULT):
         """
         Calculates the maximum size of message that can be fed to :meth:`wrap` so that the size of
         the resulting wrapped token (message plus wrapping overhead) is no more than a given
@@ -350,24 +352,23 @@ class Context(object):
         :rtype: int
         """
 
-        minor_status = OM_uint32()
-        req_output_size = OM_uint32(output_size)
-        max_input_size = OM_uint32()
-        retval = gss_wrap_size_limit(
-            byref(minor_status),
-            self._ctx,
-            c_int(conf_req),
-            gss_qop_t(qop_req),
-            req_output_size,
-            byref(max_input_size)
+        minor_status = ffi.new('OM_uint32[1]')
+        max_input_size = ffi.new('OM_uint32[1]')
+        retval = C.gss_wrap_size_limit(
+            minor_status,
+            self._ctx[0],
+            ffi.cast('int', conf_req),
+            ffi.cast('gss_qop_t', qop_req),
+            ffi.cast('OM_uint32', output_size),
+            max_input_size
         )
         if GSS_ERROR(retval):
-            if minor_status and self.mech_type:
-                raise GSSMechException(retval, minor_status, self.mech_type)
+            if minor_status[0] and self.mech_type:
+                raise GSSMechException(retval, minor_status[0], self.mech_type)
             else:
-                raise GSSCException(retval, minor_status)
+                raise GSSCException(retval, minor_status[0])
 
-        return max_input_size.value
+        return max_input_size[0]
 
     def export(self):
         """
@@ -381,31 +382,32 @@ class Context(object):
         :returns: a token which represents this security context
         :rtype: bytes
         """
-        if not (self.flags & GSS_C_TRANS_FLAG):
+        if not (self.flags & C.GSS_C_TRANS_FLAG):
             raise GSSException("Context is not transferable.")
         if not self._ctx:
             raise GSSException("Can't export empty/invalid context.")
 
-        minor_status = OM_uint32()
-        output_token_buffer = gss_buffer_desc()
-        retval = gss_export_sec_context(
-            byref(minor_status),
-            byref(self._ctx),
-            byref(output_token_buffer)
+        minor_status = ffi.new('OM_uint32[1]')
+        output_token_buffer = ffi.new('gss_buffer_desc[1]')
+        retval = C.gss_export_sec_context(
+            minor_status,
+            self._ctx,
+            output_token_buffer
         )
         try:
             if GSS_ERROR(retval):
-                if minor_status and self.mech_type:
-                    raise GSSMechException(retval, minor_status, self.mech_type)
+                if minor_status[0] and self.mech_type:
+                    raise GSSMechException(retval, minor_status[0], self.mech_type)
                 else:
-                    raise GSSCException(retval, minor_status)
+                    raise GSSCException(retval, minor_status[0])
 
-            exported_token = string_at(output_token_buffer.value, output_token_buffer.length)
-            self._ctx = gss_ctx_id_t()
+            exported_token = _buf_to_str(output_token_buffer[0])
+            # Set our context to a 'blank' context
+            self._ctx = ffi.new('gss_ctx_id_t[1]')
             return exported_token
         finally:
-            if output_token_buffer.length != 0:
-                gss_release_buffer(byref(minor_status), byref(output_token_buffer))
+            if output_token_buffer[0].length != 0:
+                C.gss_release_buffer(minor_status, output_token_buffer)
 
     @staticmethod
     def imprt(import_token):
@@ -419,62 +421,61 @@ class Context(object):
         :rtype: :class:`Context`
         """
 
-        minor_status = OM_uint32()
-        import_token_buffer = gss_buffer_desc()
-        import_token_buffer.length = len(import_token)
-        import_token_buffer.value = cast(c_char_p(import_token), c_void_p)
-        new_context = gss_ctx_id_t()
-        retval = gss_import_sec_context(
-            byref(minor_status),
-            byref(import_token_buffer),
-            byref(new_context)
+        minor_status = ffi.new('OM_uint32[1]')
+        import_token_buffer = ffi.new('gss_buffer_desc[1]')
+        import_token_buffer[0].length = len(import_token)
+        c_str_import_token = ffi.new('char[]', import_token)
+        import_token_buffer[0].value = c_str_import_token
+        new_context = ffi.new('gss_ctx_id_t[1]')
+        retval = C.gss_import_sec_context(
+            minor_status,
+            import_token_buffer,
+            new_context
         )
         try:
             if GSS_ERROR(retval):
-                raise GSSCException(retval, minor_status)
+                raise GSSCException(retval, minor_status[0])
 
-            locally_initiated = c_int()
-            established = c_int()
-            src_name = Name(gss_name_t())
-            target_name = Name(gss_name_t())
-            mech_type = gss_OID()
-            flags = OM_uint32()
-            retval = gss_inquire_context(
-                byref(minor_status),
-                new_context,
-                byref(src_name._name),
-                byref(target_name._name),
+            src_name = ffi.new('gss_name_t[1]')
+            target_name = ffi.new('gss_name_t[1]')
+            mech_type = ffi.new('gss_OID[1]')
+            flags = ffi.new('OM_uint32[1]')
+            locally_initiated = ffi.new('int[1]')
+            established = ffi.new('int[1]')
+            retval = C.gss_inquire_context(
+                minor_status,
+                new_context[0],
+                src_name,
+                target_name,
                 None,  # lifetime_rec
-                byref(mech_type),
-                byref(flags),
-                byref(locally_initiated),
-                byref(established)
+                mech_type,
+                flags,
+                locally_initiated,
+                established
             )
+            src_name = Name(src_name)
+            target_name = Name(target_name)
             if GSS_ERROR(retval):
-                raise GSSCException(retval, minor_status)
+                raise GSSCException(retval, minor_status[0])
 
-            mech = OID(mech_type.contents) if mech_type else None
+            mech = OID(mech_type[0][0]) if mech_type[0] else None
 
             if locally_initiated:
                 new_context_obj = InitContext(target_name, mech_type=mech)
-                new_context_obj._ctx = new_context
-                new_context_obj.mech_type = mech
-                new_context_obj.flags = flags.value
-                new_context_obj.established = bool(established)
             else:
                 new_context_obj = AcceptContext()
-                new_context_obj._ctx = new_context
-                new_context_obj.mech_type = mech
-                new_context_obj.flags = flags.value
-                new_context_obj.established = bool(established)
                 new_context_obj.peer_name = src_name
+            new_context_obj.mech_type = mech
+            new_context_obj.flags = flags[0]
+            new_context_obj.established = bool(established[0])
+            new_context_obj._ctx = ffi.gc(new_context, _release_gss_ctx_id_t)
             return new_context_obj
         except:
-            if new_context:
-                gss_delete_sec_context(
-                    byref(minor_status),
-                    byref(new_context),
-                    cast(GSS_C_NO_BUFFER, gss_buffer_t)
+            if new_context[0]:
+                C.gss_delete_sec_context(
+                    minor_status,
+                    new_context,
+                    ffi.cast('gss_buffer_t', C.GSS_C_NO_BUFFER)
                 )
             raise
 
@@ -486,23 +487,26 @@ class Context(object):
         :const:`gssapi.C_INDEFINITE`
         """
 
-        minor_status = OM_uint32()
-        lifetime_rec = OM_uint32()
+        minor_status = ffi.new('OM_uint32[1]')
+        lifetime_rec = ffi.new('OM_uint32[1]')
 
-        retval = gss_inquire_context(
-            byref(minor_status),
-            self._ctx,
+        retval = C.gss_inquire_context(
+            minor_status,
+            self._ctx[0],
             None,  # src_name
             None,  # target_name
-            byref(lifetime_rec),
+            lifetime_rec,
             None,  # mech_type
             None,  # ctx_flags
             None,  # locally_initiated
             None   # established
         )
         if GSS_ERROR(retval):
-            raise GSSCException(retval, minor_status)
-        return lifetime_rec.value
+            if minor_status[0] and self.mech_type:
+                raise GSSMechException(retval, minor_status[0], self.mech_type)
+            else:
+                raise GSSCException(retval, minor_status[0])
+        return lifetime_rec[0]
 
     def delete(self):
         """
@@ -518,39 +522,28 @@ class Context(object):
         :rtype: bytes
         """
 
-        if not self._ctx:
+        if not self._ctx[0]:
             raise GSSException("Can't delete invalid context")
-        return self._release()
-
-    def _release(self):
-        if hasattr(self, '_ctx') and self._ctx:
-            minor_status = OM_uint32()
-            output_token_buffer = gss_buffer_desc()
-
-            # This ought to set self._ctx to GSS_C_NO_CONTEXT
-            retval = gss_delete_sec_context(
-                byref(minor_status),
-                byref(self._ctx),
-                byref(output_token_buffer)
-            )
-            try:
-                if GSS_ERROR(retval):
-                    if minor_status and self.mech_type:
-                        raise GSSMechException(retval, minor_status, self.mech_type)
-                    else:
-                        raise GSSCException(retval, minor_status)
-
-                return string_at(output_token_buffer.value, output_token_buffer.length)
-            finally:
-                self._reset_flags()
-                if output_token_buffer.length != 0:
-                    gss_release_buffer(byref(minor_status), byref(output_token_buffer))
-
-    def __del__(self):
+        output_token_buffer = ffi.new('gss_buffer_desc[1]')
+        minor_status = ffi.new('OM_uint32[1]')
+        retval = C.gss_delete_sec_context(
+            minor_status,
+            self._ctx,
+            output_token_buffer
+        )
+        self._ctx = ffi.new('gss_ctx_id_t[1]')
+        self._reset_flags()
         try:
-            self._release()
-        except:
-            pass
+            if GSS_ERROR(retval):
+                if minor_status[0] and self.mech_type:
+                    raise GSSMechException(retval, minor_status[0], self.mech_type)
+                else:
+                    raise GSSCException(retval, minor_status[0])
+
+            return _buf_to_str(output_token_buffer[0])
+        finally:
+            if output_token_buffer[0].length != 0:
+                C.gss_release_buffer(minor_status, output_token_buffer)
 
 
 class InitContext(Context):
@@ -580,21 +573,26 @@ class InitContext(Context):
 
     """
 
-    def __init__(self, peer_name, cred=GSS_C_NO_CREDENTIAL, mech_type=None, req_flags=(), time_req=0,
-                 input_chan_bindings=GSS_C_NO_CHANNEL_BINDINGS):
+    def __init__(self, peer_name, cred=C.GSS_C_NO_CREDENTIAL, mech_type=None, req_flags=(), time_req=0,
+                 input_chan_bindings=C.GSS_C_NO_CHANNEL_BINDINGS):
         super(InitContext, self).__init__()
         self.peer_name = peer_name
 
         if hasattr(cred, '_cred'):
-            self._cred = cred._cred
             self._cred_object = cred
+        elif cred == C.GSS_C_NO_CREDENTIAL:
+            self._cred_object = None
         else:
-            self._cred = cast(cred, gss_cred_id_t)
+            raise TypeError(
+                "Expected a gssapi.Credential object or gssapi.C_NO_CREDENTIAL, got {0}".format(
+                    type(cred)
+                )
+            )
 
         self._desired_mech = mech_type
         self._req_flags = functools.reduce(operator.or_, req_flags, 0)
         self._time_req = time_req
-        self._input_chan_bindings = cast(input_chan_bindings, gss_channel_bindings_t)
+        self._input_chan_bindings = ffi.cast('gss_channel_bindings_t', input_chan_bindings)
 
     def step(self, input_token=None):
         """Performs a step to establish the context as an initiator.
@@ -611,72 +609,76 @@ class InitContext(Context):
         :raises: GSSException
         """
 
-        minor_status = OM_uint32()
+        minor_status = ffi.new('OM_uint32[1]')
 
         if input_token:
-            input_token_buffer = gss_buffer_desc()
-            input_token_buffer.length = len(input_token)
-            input_token_buffer.value = cast(c_char_p(input_token), c_void_p)
-            input_token_buffer_ptr = byref(input_token_buffer)
+            input_token_buffer = ffi.new('gss_buffer_desc[1]')
+            input_token_buffer[0].length = len(input_token)
+            c_str_import_token = ffi.new('char[]', input_token)
+            input_token_buffer[0].value = c_str_import_token
         else:
-            input_token_buffer_ptr = cast(GSS_C_NO_BUFFER, gss_buffer_t)
+            input_token_buffer = ffi.cast('gss_buffer_t', C.GSS_C_NO_BUFFER)
 
         if self._desired_mech:
-            desired_mech = byref(self._desired_mech._oid)
+            desired_mech = ffi.addressof(self._desired_mech._oid)
         else:
-            desired_mech = cast(GSS_C_NO_OID, gss_OID)
+            desired_mech = ffi.cast('gss_OID', C.GSS_C_NO_OID)
 
-        actual_mech = gss_OID()
-        output_token_buffer = gss_buffer_desc()
-        actual_flags = OM_uint32()
-        actual_time = OM_uint32()
+        actual_mech = ffi.new('gss_OID[1]')
+        output_token_buffer = ffi.new('gss_buffer_desc[1]')
+        actual_flags = ffi.new('OM_uint32[1]')
+        actual_time = ffi.new('OM_uint32[1]')
+        if self._cred_object is not None:
+            cred = self._cred_object._cred[0]
+        else:
+            cred = ffi.cast('gss_cred_id_t', C.GSS_C_NO_CREDENTIAL)
 
-        retval = gss_init_sec_context(
-            byref(minor_status),
-            self._cred,
-            byref(self._ctx),
-            self.peer_name._name,
+        retval = C.gss_init_sec_context(
+            minor_status,
+            cred,
+            self._ctx,
+            self.peer_name._name[0],
             desired_mech,
             self._req_flags,
             self._time_req,
             self._input_chan_bindings,
-            input_token_buffer_ptr,
-            byref(actual_mech),
-            byref(output_token_buffer),
-            byref(actual_flags),
-            byref(actual_time)
+            input_token_buffer,
+            actual_mech,
+            output_token_buffer,
+            actual_flags,
+            actual_time
         )
         try:
-            if output_token_buffer.length != 0:
-                out_token = string_at(output_token_buffer.value, output_token_buffer.length)
+            if output_token_buffer[0].length != 0:
+                out_token = _buf_to_str(output_token_buffer[0])
             else:
                 out_token = None
 
             if GSS_ERROR(retval):
-                if minor_status and actual_mech:
-                    raise GSSMechException(retval, minor_status, actual_mech, out_token)
+                if minor_status[0] and actual_mech[0]:
+                    raise GSSMechException(retval, minor_status[0], actual_mech[0], out_token)
                 else:
-                    raise GSSCException(retval, minor_status, out_token)
+                    raise GSSCException(retval, minor_status[0], out_token)
 
-            self.established = not (retval & GSS_S_CONTINUE_NEEDED)
-            self.flags = actual_flags.value
+            self.established = not (retval & C.GSS_S_CONTINUE_NEEDED)
+            self.flags = actual_flags[0]
 
-            if actual_mech:
-                self.mech_type = OID(actual_mech.contents)
+            if actual_mech[0]:
+                self.mech_type = OID(actual_mech[0][0])
 
             return out_token
         except:
-            if self._ctx:
-                gss_delete_sec_context(
-                    byref(minor_status),
-                    byref(self._ctx),
-                    cast(GSS_C_NO_BUFFER, gss_buffer_t)
+            if self._ctx[0]:
+                C.gss_delete_sec_context(
+                    minor_status,
+                    self._ctx,
+                    ffi.cast('gss_buffer_t', C.GSS_C_NO_BUFFER)
                 )
                 self._reset_flags()
             raise
         finally:
-            if output_token_buffer.length != 0:
-                gss_release_buffer(byref(minor_status), byref(output_token_buffer))
+            if output_token_buffer[0].length != 0:
+                C.gss_release_buffer(minor_status, output_token_buffer)
 
 
 class AcceptContext(Context):
@@ -703,18 +705,23 @@ class AcceptContext(Context):
         to None.
     """
 
-    def __init__(self, cred=GSS_C_NO_CREDENTIAL, input_chan_bindings=GSS_C_NO_CHANNEL_BINDINGS):
+    def __init__(self, cred=C.GSS_C_NO_CREDENTIAL, input_chan_bindings=C.GSS_C_NO_CHANNEL_BINDINGS):
         super(AcceptContext, self).__init__()
 
         if hasattr(cred, '_cred'):
-            self._cred = cred._cred
             self._cred_object = cred
+        elif cred == C.GSS_C_NO_CREDENTIAL:
+            self._cred_object = None
         else:
-            self._cred = cast(cred, gss_cred_id_t)
+            raise TypeError(
+                "Expected a gssapi.Credential object or gssapi.C_NO_CREDENTIAL, got {0}".format(
+                    type(cred)
+                )
+            )
         self.delegated_cred = None
         self.peer_name = None
 
-        self._input_chan_bindings = cast(input_chan_bindings, gss_channel_bindings_t)
+        self._input_chan_bindings = ffi.cast('gss_channel_bindings_t', input_chan_bindings)
 
     def step(self, input_token):
         """Performs a step to establish the context as an acceptor.
@@ -729,69 +736,77 @@ class AcceptContext(Context):
             or None if there is no further token to send to the initiator.
         :raises: GSSException
         """
-        minor_status = OM_uint32()
-        input_token_buffer = gss_buffer_desc()
-        input_token_buffer.length = len(input_token)
-        input_token_buffer.value = cast(c_char_p(input_token), c_void_p)
-        mech_type = gss_OID()
-        output_token_buffer = gss_buffer_desc()
-        src_name = gss_name_t()
-        actual_flags = OM_uint32()
-        time_rec = OM_uint32()
-        delegated_cred_handle = gss_cred_id_t()
+        minor_status = ffi.new('OM_uint32[1]')
+        input_token_buffer = ffi.new('gss_buffer_desc[1]')
+        input_token_buffer[0].length = len(input_token)
+        c_str_import_token = ffi.new('char[]', input_token)
+        input_token_buffer[0].value = c_str_import_token
 
-        retval = gss_accept_sec_context(
-            byref(minor_status),
-            byref(self._ctx),
-            self._cred,
-            byref(input_token_buffer),
+        mech_type = ffi.new('gss_OID[1]')
+        output_token_buffer = ffi.new('gss_buffer_desc[1]')
+        src_name_handle = ffi.new('gss_name_t[1]')
+        actual_flags = ffi.new('OM_uint32[1]')
+        time_rec = ffi.new('OM_uint32[1]')
+        delegated_cred_handle = ffi.new('gss_cred_id_t[1]')
+
+        if self._cred_object is not None:
+            cred = self._cred_object._cred[0]
+        else:
+            cred = ffi.cast('gss_cred_id_t', C.GSS_C_NO_CREDENTIAL)
+
+        retval = C.gss_accept_sec_context(
+            minor_status,
+            self._ctx,
+            cred,
+            input_token_buffer,
             self._input_chan_bindings,
-            byref(src_name),
-            byref(mech_type),
-            byref(output_token_buffer),
-            byref(actual_flags),
-            byref(time_rec),
-            byref(delegated_cred_handle)
+            src_name_handle,
+            mech_type,
+            output_token_buffer,
+            actual_flags,
+            time_rec,
+            delegated_cred_handle
         )
+        if src_name_handle[0]:
+            src_name = MechName(src_name_handle, mech_type[0])  # make sure src_name is GC'd
         try:
-            if output_token_buffer.length != 0:
-                out_token = string_at(output_token_buffer.value, output_token_buffer.length)
+            if output_token_buffer[0].length != 0:
+                out_token = _buf_to_str(output_token_buffer[0])
             else:
                 out_token = None
 
             if GSS_ERROR(retval):
-                if minor_status and mech_type:
-                    raise GSSMechException(retval, minor_status, mech_type, out_token)
+                if minor_status[0] and mech_type[0]:
+                    raise GSSMechException(retval, minor_status[0], mech_type[0], out_token)
                 else:
-                    raise GSSCException(retval, minor_status, out_token)
+                    raise GSSCException(retval, minor_status[0], out_token)
 
-            self.established = not (retval & GSS_S_CONTINUE_NEEDED)
-            self.flags = actual_flags.value
+            self.established = not (retval & C.GSS_S_CONTINUE_NEEDED)
+            self.flags = actual_flags[0]
 
-            if (self.flags & GSS_C_DELEG_FLAG):
+            if (self.flags & C.GSS_C_DELEG_FLAG):
                 self.delegated_cred = Credential(delegated_cred_handle)
 
-            if mech_type:
-                self.mech_type = OID(mech_type.contents)
+            if mech_type[0]:
+                self.mech_type = OID(mech_type[0][0])
 
-                if src_name:
-                    self.peer_name = MechName(src_name, mech_type)
+                if src_name_handle[0]:
+                    src_name._mech_type = self.mech_type
+                    self.peer_name = src_name
 
             return out_token
         except:
             if self._ctx:
-                gss_delete_sec_context(
-                    byref(minor_status),
-                    byref(self._ctx),
-                    cast(GSS_C_NO_BUFFER, gss_buffer_t)
+                C.gss_delete_sec_context(
+                    minor_status,
+                    self._ctx,
+                    ffi.cast('gss_buffer_t', C.GSS_C_NO_BUFFER)
                 )
                 self._reset_flags()
-            if src_name:
-                gss_release_name(byref(minor_status), byref(src_name))
             raise
         finally:
-            if output_token_buffer.length != 0:
-                gss_release_buffer(byref(minor_status), byref(output_token_buffer))
+            if output_token_buffer[0].length != 0:
+                C.gss_release_buffer(minor_status, output_token_buffer)
             # if self.delegated_cred is present, it will handle gss_release_cred:
-            if delegated_cred_handle and not self.delegated_cred:
-                gss_release_cred(byref(minor_status), byref(delegated_cred_handle))
+            if delegated_cred_handle[0] and not self.delegated_cred:
+                C.gss_release_cred(minor_status, delegated_cred_handle)

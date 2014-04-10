@@ -2,8 +2,8 @@ from __future__ import absolute_import
 
 import six
 
-from .bindings import C, ffi, GSS_ERROR
-from .error import GSSCException, GSSException, GSSMechException, _buf_to_str
+from .bindings import C, ffi, GSS_ERROR, _buf_to_str
+from .error import GSSCException, GSSException, GSSMechException
 from .oids import OID
 
 
@@ -22,7 +22,7 @@ class _NameMeta(type):
         else:
             name_type = None
         if name_type == C.GSS_C_NT_EXPORT_NAME:
-            mech_name = MechName(None, C.GSS_C_NO_OID)
+            mech_name = MechName(None, None)
             mech_name._import_name(*args, **kwargs)
             return mech_name
         else:

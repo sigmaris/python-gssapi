@@ -39,12 +39,10 @@ def _detect_verify_args():
         else:
             # This is just guessing...
             kwargs['libraries'].append('gss')
-    source += '''
-    const size_t sizeof_gss_ctx_id_t = sizeof(gss_ctx_id_t);
-    const size_t sizeof_gss_cred_id_t = sizeof(gss_cred_id_t);
-    const size_t sizeof_gss_name_t = sizeof(gss_name_t);
-    '''
-    return source, dict(kwargs)
+
+    final_kwargs = dict(kwargs)
+    final_kwargs['ext_package'] = 'gssapi.bindings'
+    return source, final_kwargs
 
 
 def _is_defined(define, verify_args, verify_kwargs):
@@ -159,6 +157,11 @@ def _json_to_bytes(input):
         return input.encode('utf-8')
     else:
         return input
+
+
+def _buf_to_str(buf):
+    """Converts a gss_buffer_desc containing a char * string to Python bytes"""
+    return bytes(ffi.buffer(buf.value, buf.length))
 
 
 def _read_header():
