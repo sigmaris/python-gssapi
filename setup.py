@@ -1,210 +1,65 @@
-import os
-import os.path
-import platform
-import re
-import subprocess
-import sys
-
 try:
     from setuptools import setup, find_packages
 except ImportError:
     from gssapi_ez_setup import use_setuptools
     use_setuptools()
     from setuptools import setup, find_packages
-import pkg_resources
 
-from setuptools.command.build_py import build_py as _build_py
-from setuptools.command.develop import develop as _develop
-
-
-def _strip_unknown_cflags(cflags):
-    """Strip out cflags that ctypesgen doesn't understand."""
-    return tuple(
-        flag for flag in cflags
-        if any(flag.startswith(prefix) for prefix in (
-            "-Wl,-L", "-Wl,-R", "-Wl,--rpath", "-l", "-I", "-L", "-R", "--rpath",
-        ))
-    )
+from distutils.command.build import build
+from setuptools.command.install import install
 
 
-def _find_gssapi_h(cflags):
-    gcc_target = subprocess.check_output(["gcc", "-dumpmachine"]).strip()
-    default_paths = [
-        "/usr/local/include",
-        "/usr/{target}/include".format(target=gcc_target),
-        "/usr/include"
-    ]
-    extra_paths = [
-        flag[2:]
-        for flag in cflags
-        if flag.startswith('-I')
-    ]
-    for include_path in (os.path.join("gssapi", "gssapi.h"), "gssapi.h"):
-        for search_path in (extra_paths + default_paths):
-            full_header = os.path.join(search_path, include_path)
-            if os.path.isfile(full_header):
-                return full_header
+def get_ext_modules():
+    from gssapi.bindings import ffi
+    return [ffi.verifier.get_extension()]
 
 
-def _patch_struct_packing(filename, packing):
-    comment_matcher = re.compile(r"^# .+\.h: \d+$")
-    struct_matcher = re.compile(r"^class [a-zA-Z_][a-zA-Z0-9_]*\(Structure\):$")
-    expect_struct = False
-    with open(filename, 'r') as infile:
-        for line in infile:
-            yield line
-            if expect_struct:
-                if struct_matcher.match(line):
-                    yield '    _pack_ = {0}\n'.format(packing)
-                expect_struct = False
-            if comment_matcher.match(line):
-                expect_struct = True
-
-
-def _initialize_options(self):
-    self.compile_flags = ()
-    self.patch_struct_pack = None
-    self.ctypesgen_cpp = "gcc -E -D__attribute__\\(x\\)="
-    self.gssapi_h_locations = []
-
-
-def _finalize_options(self):
-    if os.path.isdir('/System/Library/Frameworks/GSS.framework'):
-        # Build using GSS.framework on Mac OS X 10.7+
-        self.gssapi_h_locations = []
-        for header in ('gssapi.h', 'gssapi_oid.h', 'gssapi_protos.h', 'gssapi_krb5.h'):
-            path_in_framework = os.path.join('/System/Library/Frameworks/GSS.framework/Headers', header)
-            if os.path.isfile(path_in_framework):
-                self.gssapi_h_locations.append(path_in_framework)
-        self.compile_flags = ('-lGSS',)
-        self.cpp_extra_flags = ('-framework GSS',)
-    else:
-        # Build using libgssapi on other POSIX systems
-        try:
-            config_compile_flags = subprocess.check_output(["krb5-config", "--cflags", "gssapi"]).split()
-            config_link_flags = subprocess.check_output(["krb5-config", "--libs", "gssapi"]).split()
-        except:
-            try:
-                config_compile_flags = subprocess.check_output(["pkg-config", "--cflags", "gss"]).split()
-                config_link_flags = subprocess.check_output(["pkg-config", "--libs", "gss"]).split()
-            except:
-                config_compile_flags = []
-                config_link_flags = []
-        config_compile_flags = [ f.decode() for f in config_compile_flags ]
-        config_link_flags = [ f.decode() for f in config_link_flags ]
-        self.compile_flags = (_strip_unknown_cflags(config_compile_flags)
-                              + _strip_unknown_cflags(config_link_flags))
-        self.cpp_extra_flags = tuple(config_compile_flags)
-
-    currentplatform = platform.system()
-    if currentplatform == 'Darwin':
-        self.patch_struct_pack = 2
-        machine = platform.machine()
-        define = {
-            "x86_64": "TARGET_CPU_X86_64",
-            "i386": "TARGET_CPU_X86",
-            "ppc64": "TARGET_CPU_PPC64",
-            "ppc": "TARGET_CPU_PPC",
-        }[machine]
-        self.ctypesgen_cpp = "gcc -E -D{0} -D__attribute__\\(x\\)= {1}".format(define, " ".join(self.cpp_extra_flags))
-    else:
-        self.ctypesgen_cpp = "gcc -E -D__attribute__\\(x\\)= {0}".format(" ".join(self.cpp_extra_flags))
-
-    self.compile_flags += ("-i", "uid_t")
-
-    if not self.gssapi_h_locations:
-        self.gssapi_h_locations = [_find_gssapi_h(self.compile_flags)]
-
-
-def _generate_headers(self, target):
-    if not any(self.gssapi_h_locations):
-        raise RuntimeError(
-            "GSSAPI headers could not be found. "
-            "Please install the GSSAPI C library development headers for your OS."
-        )
-
-    ctypesgen_dist = pkg_resources.get_distribution(
-        pkg_resources.Requirement.parse('ctypesgen==0.r125')
-    )
-    try:
-        script_str = ctypesgen_dist.get_metadata('scripts/ctypesgen.py')
-        ctypesgen_command = [sys.executable, "-", "--cpp", self.ctypesgen_cpp]
-    except:
-        script_str = None
-        ctypesgen_command = ["ctypesgen.py", "--cpp", self.ctypesgen_cpp]
-
-    new_env = dict(os.environ)
-    new_env['PYTHONPATH'] = ctypesgen_dist.location
-
-    ctypesgen_command.extend(self.compile_flags)
-    ctypesgen_command.extend(["-o", target])
-    ctypesgen_command.extend(self.gssapi_h_locations)
-
-    if script_str:
-        ctypesgen_proc = subprocess.Popen(ctypesgen_command, stdin=subprocess.PIPE, env=new_env)
-        ctypesgen_proc.communicate(script_str)
-        if ctypesgen_proc.returncode != 0:
-            raise subprocess.CalledProcessError(ctypesgen_proc.returncode, ctypesgen_command)
-    else:
-        subprocess.check_call(ctypesgen_command)
-
-    if self.patch_struct_pack is not None:
-        patched_source = "".join(_patch_struct_packing(
-            target, self.patch_struct_pack
-        ))
-        with open(target, 'w') as outfile:
-            outfile.write(patched_source)
-
-
-class build_py(_build_py):
-    def initialize_options(self):
-        _build_py.initialize_options(self)
-        _initialize_options(self)
+class CFFIBuild(build):
 
     def finalize_options(self):
-        _build_py.finalize_options(self)
-        _finalize_options(self)
-
-    def run(self):
-        target = _build_py.get_module_outfile(self, self.build_lib, ['gssapi', 'headers'], "gssapi_h")
-        target_dir = os.path.dirname(target)
-        _build_py.mkpath(self, target_dir)
-        _generate_headers(self, target)
-        _build_py.run(self)
+        self.distribution.ext_modules = get_ext_modules()
+        build.finalize_options(self)
 
 
-class develop(_develop):
-    def initialize_options(self):
-        _develop.initialize_options(self)
-        _initialize_options(self)
+class CFFIInstall(install):
 
     def finalize_options(self):
-        _develop.finalize_options(self)
-        _finalize_options(self)
+        self.distribution.ext_modules = get_ext_modules()
+        install.finalize_options(self)
 
-    def run(self):
-        _develop.run(self)
-        target = os.path.join(self.egg_path, 'gssapi', 'headers', 'gssapi_h.py')
-        _generate_headers(self, target)
+
+CFFI_REQUIREMENT = 'cffi>=0.8'
+SIX_REQUIREMENT = 'six>=1.5.0',
 
 
 setup(
     name="python-gssapi",
-    version="0.5.1",
-    cmdclass={
-        "build_py": build_py,
-        "develop": develop,
-    },
+    version="0.6.0-pre",
     packages=find_packages(exclude=["tests.*", "tests"]),
     py_modules=['gssapi_ez_setup'],
 
+    # package_data specifies what is included in a bdist
+    package_data={
+        'gssapi.bindings': ['*.cdef']
+    },
+
     setup_requires=[
-        'ctypesgen==0.r125',
+        CFFI_REQUIREMENT,
+        SIX_REQUIREMENT,
     ],
     install_requires=[
         'pyasn1>=0.1.2',
-        'six>=1.5.0'
+        SIX_REQUIREMENT,
+        CFFI_REQUIREMENT
     ],
+
+    # for cffi
+    zip_safe=False,
+    ext_package="gssapi.bindings",
+    cmdclass={
+        "build": CFFIBuild,
+        "install": CFFIInstall,
+    },
 
     # metadata for upload to PyPI
     author="Hugh Cole-Baker",
