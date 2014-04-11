@@ -447,7 +447,7 @@ class Context(object):
                 new_context[0],
                 src_name,
                 target_name,
-                None,  # lifetime_rec
+                ffi.NULL,  # lifetime_rec
                 mech_type,
                 flags,
                 locally_initiated,
@@ -493,13 +493,13 @@ class Context(object):
         retval = C.gss_inquire_context(
             minor_status,
             self._ctx[0],
-            None,  # src_name
-            None,  # target_name
+            ffi.NULL,  # src_name
+            ffi.NULL,  # target_name
             lifetime_rec,
-            None,  # mech_type
-            None,  # ctx_flags
-            None,  # locally_initiated
-            None   # established
+            ffi.NULL,  # mech_type
+            ffi.NULL,  # ctx_flags
+            ffi.NULL,  # locally_initiated
+            ffi.NULL   # established
         )
         if GSS_ERROR(retval):
             if minor_status[0] and self.mech_type:
@@ -619,7 +619,7 @@ class InitContext(Context):
         else:
             input_token_buffer = ffi.cast('gss_buffer_t', C.GSS_C_NO_BUFFER)
 
-        if self._desired_mech:
+        if isinstance(self._desired_mech, OID):
             desired_mech = ffi.addressof(self._desired_mech._oid)
         else:
             desired_mech = ffi.cast('gss_OID', C.GSS_C_NO_OID)
