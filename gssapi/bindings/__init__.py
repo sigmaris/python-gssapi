@@ -31,8 +31,14 @@ def _detect_verify_args():
             except:
                 config_compile_flags = []
                 config_link_flags = []
-        config_compile_flags = [f.decode() for f in config_compile_flags]
-        config_link_flags = [f.decode() for f in config_link_flags]
+        config_compile_flags = [
+            f.encode('utf-8') if isinstace(f, six.text_type) else f
+            for f in config_compile_flags
+        ]
+        config_link_flags = [
+            f.encode('utf-8') if isinstance(f, six.text_type) else f
+            for f in config_link_flags
+        ]
         if len(config_compile_flags) > 0:
             kwargs['extra_compile_args'].extend(config_compile_flags)
         if len(config_link_flags) > 0:
