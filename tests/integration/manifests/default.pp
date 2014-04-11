@@ -18,6 +18,8 @@ class defaults {
 			ensure => installed;
 		"python-dev":
 			ensure => installed;
+		"libffi-dev":
+			ensure => installed;
 	}
 
 	file {
