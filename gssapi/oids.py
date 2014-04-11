@@ -61,7 +61,7 @@ class OID(object):
         hsh = 31
         for c in ffi.buffer(self._oid.elements, self._oid.length):
             if sys.version_info >= (3,):
-                hsh = 101 * hsh + c
+                hsh = 101 * hsh + c[0]
             else:
                 hsh = 101 * hsh + ord(c)
         return hsh
