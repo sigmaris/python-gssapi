@@ -61,13 +61,13 @@ class Name(object):
             c_str_name = ffi.new('char[]', name)
             name_buffer[0].value = c_str_name
         elif isinstance(name, six.string_types):
-            name_buffer.length = len(name)
+            name_buffer[0].length = len(name)
             c_str_name = ffi.new('char[]', name.encode())
-            name_buffer.value = c_str_name
+            name_buffer[0].value = c_str_name
         elif isinstance(name, six.integer_types):
             c_name = ffi.new('uid_t[1]', (name,))
-            name_buffer.length = ffi.sizeof('uid_t')
-            name_buffer.value = c_name
+            name_buffer[0].length = ffi.sizeof('uid_t')
+            name_buffer[0].value = c_name
         else:
             raise TypeError("Expected a string or integer, got {0}".format(type(name)))
 
