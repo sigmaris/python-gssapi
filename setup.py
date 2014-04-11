@@ -28,13 +28,15 @@ class CFFIInstall(install):
         install.finalize_options(self)
 
 
-CFFI_REQUIREMENT = 'cffi>=0.8'
-SIX_REQUIREMENT = 'six>=1.5.0',
-
+REQUIRES = [
+    'cffi>=0.8',
+    'six>=1.5.0',
+    'pyasn1>=0.1.2',
+]
 
 setup(
     name="python-gssapi",
-    version="0.6.0-pre",
+    version="0.6.0pre",
     packages=find_packages(exclude=["tests.*", "tests"]),
     py_modules=['gssapi_ez_setup'],
 
@@ -43,15 +45,8 @@ setup(
         'gssapi.bindings': ['*.cdef']
     },
 
-    setup_requires=[
-        CFFI_REQUIREMENT,
-        SIX_REQUIREMENT,
-    ],
-    install_requires=[
-        'pyasn1>=0.1.2',
-        SIX_REQUIREMENT,
-        CFFI_REQUIREMENT
-    ],
+    setup_requires=REQUIRES,
+    install_requires=REQUIRES,
 
     # for cffi
     zip_safe=False,
