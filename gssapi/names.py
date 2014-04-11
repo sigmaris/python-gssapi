@@ -22,7 +22,7 @@ class _NameMeta(type):
         else:
             name_type = None
         if name_type == C.GSS_C_NT_EXPORT_NAME:
-            mech_name = MechName(None, None)
+            mech_name = MechName(None, C.GSS_C_NO_OID)
             mech_name._import_name(*args, **kwargs)
             return mech_name
         else:
