@@ -51,22 +51,28 @@ class ClientIntegrationTest(unittest.TestCase):
     def setUpClass(cls):
         cls.logger = logging.getLogger(__name__)
 
-    # @classmethod
-    # def tearDownClass(cls):
-    #     cls.logger.info("*** client starting shutdown ***")
-    #     sock, sockfile = cls._connect()
-    #     ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE))
-    #     cls._handshake(sockfile, ctx)
-    #     cls.logger.info("*** client sending SHUTDOWN command ***")
-    #     sockfile.write(b'!SHUTDOWN\n')
-    #     sockfile.close()
-    #     sock.close()
+    @classmethod
+    def tearDownClass(cls):
+         cls.logger.info("*** client starting shutdown ***")
+         sock, sockfile = cls._connect()
+         ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE))
+         cls._handshake(sockfile, ctx)
+         cls.logger.info("*** client sending SHUTDOWN command ***")
+         sockfile.write(b'!SHUTDOWN\n')
+         sockfile.close()
+         sock.close()
 
     def test_basic_handshake(self):
         ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE))
         self._handshake(self.sockfile, ctx)
         self._writeline(b'!MYNAME')
         self.assertEqual(self.sockfile.readline().strip(), 'testuser@PYTHONGSSAPI.TEST')
+
+    def test_lifetime(self):
+        ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE))
+        self._handshake(self.sockfile, ctx)
+        self._writeline(b'!LIFETIME')
+        self.assertLess(abs(int(self.sockfile.readline().strip()) - ctx.lifetime), 5)
 
     def test_wrapping(self):
         ctx = InitContext(

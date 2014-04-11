@@ -39,6 +39,8 @@ class GSSAPIHandler(SocketServer.BaseRequestHandler):
             server.shutdown()
         elif client_command == '!MYNAME':
             self._writeline(str(ctx.peer_name))
+        elif client_command == '!LIFETIME':
+            self._writeline(str(ctx.lifetime))
         elif client_command == '!WRAPTEST':
             self._wrap_test(ctx)
         elif client_command == '!MICTEST':
