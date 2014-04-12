@@ -1,6 +1,15 @@
 class defaults {
-	exec { "apt-get update":
-		path => "/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin",
+	exec {
+		"apt-get update":
+			path => "/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin";
+		'easy_install-2.7 pip':
+			require => Package['python-setuptools'],
+			creates => '/usr/local/bin/pip2',
+			path => "/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin";
+		'easy_install3 pip':
+			require => Package['python3-setuptools'],
+			creates => '/usr/local/bin/pip3',
+			path => "/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin";
 	}
 
 	Exec["apt-get update"] -> Package <| |>
@@ -12,13 +21,19 @@ class defaults {
 			ensure => installed;
 		"kstart":
 			ensure => installed;
-		"python-pip":
-			ensure => installed;
 		"build-essential":
 			ensure => installed;
 		"python-dev":
 			ensure => installed;
+		"python3-dev":
+			ensure => installed;
 		"libffi-dev":
+			ensure => installed;
+		"python-setuptools":
+			ensure => installed;
+		"python3":
+			ensure => installed;
+		"python3-setuptools":
 			ensure => installed;
 	}
 

@@ -11,8 +11,8 @@ if __name__ == '__main__':
 
     pip_install_procs = [subprocess_on_vm(vm, ' && '.join((
         'cd /python-gssapi',
-        'python setup.py develop --user',
-        'sudo pip install -r dev_requirements.txt'
+        'sudo pip2 install -r dev_requirements.txt',
+        'sudo pip3 install -r dev_requirements.txt',
     ))) for vm in ('server', 'client')]
 
     [process.wait() for process in pip_install_procs]
