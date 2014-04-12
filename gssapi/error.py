@@ -66,7 +66,7 @@ def status_list(maj_status, min_status, status_type=C.GSS_C_GSS_CODE, mech_type=
     if min_status:
         minor_status_msgs = status_list(min_status, 0, C.GSS_C_MECH_CODE, mech_type)
         if minor_status_msgs:
-            statuses.append(b"Minor code:")
+            statuses.append("Minor code:")
             statuses.extend(minor_status_msgs)
     return statuses
 

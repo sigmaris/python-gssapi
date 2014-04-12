@@ -1,10 +1,14 @@
 import base64
-import SocketServer
+import six
+if six.PY3:
+    import socketserver
+else:
+    import SocketServer as socketserver
 
 from gssapi import AcceptContext
 
 
-class GSSAPIHandler(SocketServer.BaseRequestHandler):
+class GSSAPIHandler(socketserver.BaseRequestHandler):
 
     def _writeline(self, line):
         self.request.sendall(line + b'\n')
@@ -18,7 +22,7 @@ class GSSAPIHandler(SocketServer.BaseRequestHandler):
             print("{0} handshaking...".format(self.client_address[0]))
             in_b64 = self.sockfile.readline()
             in_token = base64.b64decode(in_b64)
-            print("{0} sent {1} bytes.").format(self.client_address[0], len(in_token))
+            print("{0} sent {1} bytes.".format(self.client_address[0], len(in_token)))
             if len(in_token) < 1:
                 return
             out_token = ctx.step(in_token)
@@ -26,7 +30,7 @@ class GSSAPIHandler(SocketServer.BaseRequestHandler):
                 print("Sending back {0} bytes".format(len(out_token)))
                 self._writeline(base64.b64encode(out_token))
         print("{0} handshake complete.".format(self.client_address[0]))
-        self._writeline('!OK')
+        self._writeline(b'!OK')
         client_command = self.sockfile.readline().strip()
         print("{0} command: {1}".format(self.client_address[0], client_command))
 
@@ -97,7 +101,7 @@ class GSSAPIHandler(SocketServer.BaseRequestHandler):
 
 
 if __name__ == '__main__':
-    server = SocketServer.ThreadingTCPServer(('', 59991), GSSAPIHandler)
+    server = socketserver.ThreadingTCPServer(('', 59991), GSSAPIHandler)
     print("Starting test server...")
     server.serve_forever()
     print("Test server shutdown.")

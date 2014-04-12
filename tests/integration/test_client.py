@@ -20,7 +20,8 @@ class ClientIntegrationTest(unittest.TestCase):
         self.sock.close()
 
     def _writeline(self, line):
-        return self.sock.sendall(line + b'\n')
+        self.sock.sendall(line)
+        self.sock.sendall(b'\n')
 
     @classmethod
     def _connect(cls):
@@ -36,7 +37,7 @@ class ClientIntegrationTest(unittest.TestCase):
             out_token = ctx.step(in_token)
             out_b64 = base64.b64encode(out_token)
             sockfile.write(out_b64)
-            sockfile.write('\n')
+            sockfile.write(b'\n')
             sockfile.flush()
             in_token = sockfile.readline()
             if ctx.established:
@@ -66,7 +67,7 @@ class ClientIntegrationTest(unittest.TestCase):
         ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE))
         self._handshake(self.sockfile, ctx)
         self._writeline(b'!MYNAME')
-        self.assertEqual(self.sockfile.readline().strip(), 'testuser@PYTHONGSSAPI.TEST')
+        self.assertEqual(self.sockfile.readline().strip(), b'testuser@PYTHONGSSAPI.TEST')
 
     def test_lifetime(self):
         ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE))
@@ -83,8 +84,8 @@ class ClientIntegrationTest(unittest.TestCase):
         assert ctx.confidentiality_negotiated
         self._writeline(b'!WRAPTEST')
         self._writeline(base64.b64encode(ctx.wrap(b'msg_from_client')))
-        self.assertEqual(self.sockfile.readline().strip(), '!OK')
-        self.assertEqual(ctx.unwrap(base64.b64decode(self.sockfile.readline())), 'msg_from_server')
+        self.assertEqual(self.sockfile.readline().strip(), b'!OK')
+        self.assertEqual(ctx.unwrap(base64.b64decode(self.sockfile.readline())), b'msg_from_server')
 
     def test_mic(self):
         ctx = InitContext(
@@ -96,9 +97,9 @@ class ClientIntegrationTest(unittest.TestCase):
         self._writeline(b'!MICTEST')
         self._writeline(b'msg_from_client')
         self._writeline(base64.b64encode(ctx.get_mic(b'msg_from_client')))
-        self.assertEqual(self.sockfile.readline().strip(), '!OK')
-        self.assertEqual(self.sockfile.readline().strip(), 'msg_from_server')
-        ctx.verify_mic('msg_from_server', base64.b64decode(self.sockfile.readline()))
+        self.assertEqual(self.sockfile.readline().strip(), b'!OK')
+        self.assertEqual(self.sockfile.readline().strip(), b'msg_from_server')
+        ctx.verify_mic(b'msg_from_server', base64.b64decode(self.sockfile.readline()))
 
     def test_get_wrap_size_limit(self):
         ctx = InitContext(
@@ -109,7 +110,7 @@ class ClientIntegrationTest(unittest.TestCase):
         assert ctx.confidentiality_negotiated
         wrap_size_limit = ctx.get_wrap_size_limit(512)
         self.assertLessEqual(wrap_size_limit, 512)
-        msg = ''.join(chr(random.randint(0, 255)) for c in range(wrap_size_limit))
+        msg = b'*' * wrap_size_limit
         self.assertLessEqual(len(ctx.wrap(msg)), 512)
         self._writeline(b'!NOOP')
 
@@ -122,18 +123,18 @@ class ClientIntegrationTest(unittest.TestCase):
         )
         self._handshake(self.sockfile, ctx)
         self._writeline(b'!DELEGTEST')
-        self.assertEqual(self.sockfile.readline().strip(), '!OK')
-        self.assertEqual(self.sockfile.readline().strip(), 'testuser@PYTHONGSSAPI.TEST')
-        self.assertGreaterEqual(int(self.sockfile.readline().strip()), cred.lifetime)
+        self.assertEqual(self.sockfile.readline().strip(), b'!OK')
+        self.assertEqual(self.sockfile.readline().strip(), b'testuser@PYTHONGSSAPI.TEST')
+        self.assertLess(abs(int(self.sockfile.readline().strip()) - cred.lifetime), 5)
 
     def test_no_deleg_cred(self):
         ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE))
         self._handshake(self.sockfile, ctx)
         self._writeline(b'!DELEGTEST')
-        self.assertEqual(self.sockfile.readline().strip(), '!NOCRED')
+        self.assertEqual(self.sockfile.readline().strip(), b'!NOCRED')
 
     def test_mech_type(self):
         ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE))
         self._handshake(self.sockfile, ctx)
         self._writeline(b'!MECHTYPE')
-        self.assertEqual(self.sockfile.readline().strip(), str(ctx.mech_type))
+        self.assertEqual(self.sockfile.readline().strip().decode('utf-8'), str(ctx.mech_type))
