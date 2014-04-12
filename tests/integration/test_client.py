@@ -1,7 +1,7 @@
 import base64
 import logging
-import random
 import socket
+import sys
 import unittest
 
 from gssapi import (InitContext, Name, Credential, C_NT_HOSTBASED_SERVICE, C_CONF_FLAG,
@@ -26,7 +26,7 @@ class ClientIntegrationTest(unittest.TestCase):
     @classmethod
     def _connect(cls):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(("server.pythongssapi.test", 59991))
+        s.connect(("server.pythongssapi.test", 10100 + sys.version_info[0]))
         sockfile = s.makefile('rwb')
         return s, sockfile
 
