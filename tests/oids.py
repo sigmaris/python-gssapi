@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import gc
 import unittest
 
 from mock import patch
@@ -59,6 +60,9 @@ class KerberosOIDTest(unittest.TestCase):
 
 
 class OIDSetTest(unittest.TestCase):
+
+    def setUp(self):
+        gc.collect()
 
     def test_singleton_sets(self):
         allmechs = get_all_mechs()
@@ -157,6 +161,7 @@ class OIDSetTest(unittest.TestCase):
         self.test_in()
         self.test_array_access()
         self.test_eq()
+        gc.collect()
         self.assertEqual(
             release.call_count,
             (create.call_count + indicate.call_count),
@@ -170,14 +175,17 @@ class OIDSetTest(unittest.TestCase):
         allmechs = get_all_mechs()
         onemech = allmechs[0]
         del allmechs
+        gc.collect()
         self.assertEqual(mocked.call_count, 0)
         del onemech
+        gc.collect()
         self.assertEqual(mocked.call_count, 1)
 
     @patch('gssapi.oids.C.gss_release_oid_set', wraps=C.gss_release_oid_set)
     def test_destructor(self, mocked):
         new_set = OIDSet()
         del new_set
+        gc.collect()
         self.assertEqual(mocked.call_count, 1)
 
     @patch('gssapi.oids.C.gss_release_oid_set', wraps=C.gss_release_oid_set)

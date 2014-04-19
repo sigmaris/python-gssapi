@@ -1,11 +1,12 @@
 from __future__ import absolute_import
 
-import unittest
-import re
+import gc
 import os
-import pwd
 import platform
+import pwd
+import re
 import socket
+import unittest
 
 from mock import patch
 
@@ -57,6 +58,7 @@ class NameTest(unittest.TestCase):
 class KerberosNameTest(NameTest):
 
     def setUp(self):
+        gc.collect()
         super(KerberosNameTest, self).setUp()
         try:
             self.krb5mech = OID.mech_from_string('{1 2 840 113554 1 2 2}')
@@ -156,6 +158,7 @@ class KerberosNameTest(NameTest):
         self.test_canonicalize()
         self.test_eq()
         self.test_compare_canonicalized()
+        gc.collect()
         self.assertEqual(release.call_count, (imprt.call_count + canonicalize.call_count))
 
     @patch('gssapi.names.C.gss_release_name', wraps=C.gss_release_name)
@@ -165,5 +168,6 @@ class KerberosNameTest(NameTest):
         _release_gss_name_t(backing_struct)
         _release_gss_name_t(backing_struct)
         del name
+        gc.collect()
         self.assertEqual(mocked.call_count, 1)
         self.assertEqual(mocked.call_args[0][1], backing_struct)
