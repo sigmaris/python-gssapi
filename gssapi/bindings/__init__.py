@@ -173,7 +173,7 @@ def _kwargs_decode(input):
 
 def _buf_to_str(buf):
     """Converts a gss_buffer_desc containing a char * string to Python bytes"""
-    return bytes(ffi.buffer(buf.value, buf.length))
+    return ffi.buffer(buf.value, buf.length)[:]
 
 
 def _read_header():

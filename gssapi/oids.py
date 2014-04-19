@@ -96,7 +96,7 @@ class OID(object):
     def __str__(self):
         tag = b'\x06'
         length = struct.pack('B', self._oid.length)
-        value = bytes(ffi.buffer(self._oid.elements, self._oid.length))
+        value = ffi.buffer(self._oid.elements, self._oid.length)[:]
         return str(decoder.decode(tag + length + value)[0])
 
 
