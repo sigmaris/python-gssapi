@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from .__about__ import __title__, __author__, __version__, __license__, __copyright__
 from . import bindings
 
 C_DELEG_FLAG = bindings.C.GSS_C_DELEG_FLAG

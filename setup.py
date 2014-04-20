@@ -1,3 +1,5 @@
+import os.path
+
 try:
     from setuptools import setup, find_packages
 except ImportError:
@@ -34,15 +36,22 @@ REQUIRES = [
     'pyasn1>=0.1.2',
 ]
 
+base_dir = os.path.dirname(__file__)
+
+about = {}
+with open(os.path.join(base_dir, "gssapi", "__about__.py")) as f:
+    exec(f.read(), about)
+
+
 setup(
-    name="python-gssapi",
-    version="0.6.0pre",
+    name=about["__title__"],
+    version=about["__version__"],
     packages=find_packages(exclude=["tests.*", "tests"]),
-    py_modules=['gssapi_ez_setup'],
+    py_modules=["gssapi_ez_setup"],
 
     # package_data specifies what is included in a bdist
     package_data={
-        'gssapi.bindings': ['*.cdef']
+        "gssapi.bindings": ["*.cdef"]
     },
 
     setup_requires=REQUIRES,
@@ -57,10 +66,10 @@ setup(
     },
 
     # metadata for upload to PyPI
-    author="Hugh Cole-Baker",
+    author=about["__author__"],
     author_email="hugh@sigmaris.info",
     description="An object-oriented interface to GSSAPI for Python",
-    license="BSD",
+    license=about["__license__"],
     keywords="gssapi kerberos",
     url="https://github.com/sigmaris/python-gssapi",
 )
