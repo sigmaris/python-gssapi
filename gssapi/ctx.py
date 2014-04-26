@@ -570,7 +570,9 @@ class InitContext(Context):
     :param time_req: the number of seconds for which the context should be valid. If not provided,
         a default lifetime will be used.
     :type time_req: int
-
+    :param input_chan_bindings: Optional channel bindings object, to bind this security context to
+        an underlying communications channel.
+    :type input_chan_bindings: :class:`~gssapi.chanbind.ChannelBindings`
     """
 
     def __init__(self, peer_name, cred=C.GSS_C_NO_CREDENTIAL, mech_type=None, req_flags=(), time_req=0,
@@ -592,18 +594,28 @@ class InitContext(Context):
         self._desired_mech = mech_type
         self._req_flags = functools.reduce(operator.or_, req_flags, 0)
         self._time_req = time_req
-        self._input_chan_bindings = ffi.cast('gss_channel_bindings_t', input_chan_bindings)
+
+        if (
+            hasattr(input_chan_bindings, '_cb')
+            and isinstance(input_chan_bindings._cb, ffi.CData)
+            and ffi.typeof(input_chan_bindings._cb) == ffi.typeof('gss_channel_bindings_t')
+        ):
+            self._channel_bindings = input_chan_bindings._cb
+        else:
+            self._channel_bindings = ffi.cast(
+                'gss_channel_bindings_t', C.GSS_C_NO_CHANNEL_BINDINGS
+            )
 
     def step(self, input_token=None):
         """Performs a step to establish the context as an initiator.
 
-        This method should be called in a loop and fed input tokens
-        from the acceptor, and its output tokens should be sent to the
-        acceptor, until this context's established attribute is True.
+        This method should be called in a loop and fed input tokens from the acceptor, and its
+        output tokens should be sent to the acceptor, until this context's :attr:`established`
+        attribute is True.
 
         :param input_token: The input token from the acceptor (omit this param or pass None on
             the first call).
-        :type input_token: bytes.
+        :type input_token: bytes
         :returns: either a byte string with the next token to send to the acceptor,
             or None if there is no further token to send to the acceptor.
         :raises: GSSException
@@ -614,8 +626,8 @@ class InitContext(Context):
         if input_token:
             input_token_buffer = ffi.new('gss_buffer_desc[1]')
             input_token_buffer[0].length = len(input_token)
-            c_str_import_token = ffi.new('char[]', input_token)
-            input_token_buffer[0].value = c_str_import_token
+            c_str_input_token = ffi.new('char[]', input_token)
+            input_token_buffer[0].value = c_str_input_token
         else:
             input_token_buffer = ffi.cast('gss_buffer_t', C.GSS_C_NO_BUFFER)
 
@@ -628,6 +640,7 @@ class InitContext(Context):
         output_token_buffer = ffi.new('gss_buffer_desc[1]')
         actual_flags = ffi.new('OM_uint32[1]')
         actual_time = ffi.new('OM_uint32[1]')
+
         if self._cred_object is not None:
             cred = self._cred_object._cred[0]
         else:
@@ -641,7 +654,7 @@ class InitContext(Context):
             desired_mech,
             self._req_flags,
             self._time_req,
-            self._input_chan_bindings,
+            self._channel_bindings,
             input_token_buffer,
             actual_mech,
             output_token_buffer,
@@ -687,10 +700,13 @@ class AcceptContext(Context):
     context on the acceptor side. The initiator is normally authenticated as part of the context
     establishment process, though some mechanisms support anonymous peers.
 
-    :param cred: The credential to use for the acceptor. Pass :const:`gssapi.C_NO_CREDENTIAL` to
-        use the default acceptor credentials (e.g. any principal in the default keytab, when the
-        Kerberos mechanism is used).
+    :param cred: The credential to use for the acceptor. Omit this parameter or pass
+        :const:`gssapi.C_NO_CREDENTIAL` to use the default acceptor credentials (e.g. any principal
+        in the default keytab, when the Kerberos mechanism is used).
     :type cred: :class:`~gssapi.creds.Credential`
+    :param input_chan_bindings: Optional channel bindings object, to bind this security context to
+        an underlying communications channel.
+    :type input_chan_bindings: :class:`~gssapi.chanbind.ChannelBindings`
 
     .. py:attribute:: delegated_cred
 
@@ -721,14 +737,21 @@ class AcceptContext(Context):
         self.delegated_cred = None
         self.peer_name = None
 
-        self._input_chan_bindings = ffi.cast('gss_channel_bindings_t', input_chan_bindings)
+        if (
+            hasattr(input_chan_bindings, '_cb')
+            and isinstance(input_chan_bindings._cb, ffi.CData)
+            and ffi.typeof(input_chan_bindings._cb) == ffi.typeof('gss_channel_bindings_t')
+        ):
+            self._channel_bindings = input_chan_bindings._cb
+        else:
+            self._channel_bindings = ffi.cast('gss_channel_bindings_t', C.GSS_C_NO_CHANNEL_BINDINGS)
 
     def step(self, input_token):
         """Performs a step to establish the context as an acceptor.
 
-        This method should be called in a loop and fed input tokens
-        from the initiator, and its output tokens should be sent to the
-        initiator, until this context's established attribute is True.
+        This method should be called in a loop and fed input tokens from the initiator, and its
+        output tokens should be sent to the initiator, until this context's :attr:`established`
+        attribute is True.
 
         :param input_token: The input token from the initiator (required).
         :type input_token: bytes
@@ -759,7 +782,7 @@ class AcceptContext(Context):
             self._ctx,
             cred,
             input_token_buffer,
-            self._input_chan_bindings,
+            self._channel_bindings,
             src_name_handle,
             mech_type,
             output_token_buffer,

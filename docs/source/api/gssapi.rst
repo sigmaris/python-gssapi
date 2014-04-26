@@ -3,7 +3,7 @@
 
 .. py:module:: gssapi
 
-In general, all the useful functions, classes and constants from the subpackages of :mod:`gssapi`
+In general, all the useful functions, classes and constants from the modules within :mod:`gssapi`
 such as :class:`~gssapi.ctx.InitContext`, :class:`~gssapi.names.Name`, etc, are available as
 members of the :mod:`gssapi` package, so you can do:
 
@@ -137,6 +137,108 @@ Name Types
     :meth:`~gssapi.names.MechName.export`. The value should be the bytestring returned by
     :meth:`~gssapi.names.MechName.export`.
 
+Address Types
+^^^^^^^^^^^^^
+
+These constants represent different address families that can be used as the ``initiator_addrtype``
+or ``acceptor_addrtype`` parameters to :class:`~gssapi.chanbind.ChannelBindings`, to denote the
+type of the initiator and acceptor addresses in the channel bindings. These will generally not be
+useful except in some rare circumstances, as most of these address families are no longer widely
+used, and using IP addresses in GSSAPI channel bindings is deprecated and does not work across NAT.
+They are only included for completeness' sake.
+
+.. py:data:: C_AF_UNSPEC
+
+    Unspecified address type.
+
+.. py:data:: C_AF_LOCAL
+
+    Host-local address type.
+
+.. py:data:: C_AF_INET
+
+    Internet address type (e.g. IPv4).
+
+.. py:data:: C_AF_IMPLINK
+
+    ARPAnet IMP address type.
+
+.. py:data:: C_AF_PUP
+
+    pup protocols (eg BSP) address type.
+
+.. py:data:: C_AF_CHAOS
+
+    MIT CHAOS protocol address type.
+
+.. py:data:: C_AF_NS
+
+    XEROX NS address type.
+
+.. py:data:: C_AF_NBS
+
+    nbs address type.
+
+.. py:data:: C_AF_ECMA
+
+    ECMA address type.
+
+.. py:data:: C_AF_DATAKIT
+
+    datakit protocols address type.
+
+.. py:data:: C_AF_CCITT
+
+    CCITT protocols.
+
+.. py:data:: C_AF_SNA
+
+    IBM SNA address type.
+
+.. py:data:: C_AF_DECnet
+
+    DECnet address type.
+
+.. py:data:: C_AF_DLI
+
+    Direct data link interface address type.
+
+.. py:data:: C_AF_LAT
+
+    LAT address type.
+
+.. py:data:: C_AF_HYLINK
+
+    NSC Hyperchannel address type.
+
+.. py:data:: C_AF_APPLETALK
+
+    AppleTalk address type.
+
+.. py:data:: C_AF_BSC
+
+    BISYNC 2780/3780 address type.
+
+.. py:data:: C_AF_DSS
+
+    Distributed system services address type.
+
+.. py:data:: C_AF_OSI
+
+    OSI TP4 address type.
+
+.. py:data:: C_AF_X25
+
+    X.25.
+
+.. py:data:: C_AF_INET6
+
+    IPv6 address type. May not be defined in some implementations, e.g. MIT Kerberos.
+
+.. py:data:: C_AF_NULLADDR
+
+    No address specified.
+
 Status Codes
 ^^^^^^^^^^^^
 
@@ -184,6 +286,13 @@ are equivalent to the status codes listed in the RFC without the `GSS_` prefix.
 -------------------
 
 .. automodule:: gssapi.creds
+    :members:
+    :show-inheritance:
+
+:mod:`chanbind` Module
+----------------------
+
+.. automodule:: gssapi.chanbind
     :members:
     :show-inheritance:
 

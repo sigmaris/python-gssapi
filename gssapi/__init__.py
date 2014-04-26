@@ -12,16 +12,48 @@ C_INTEG_FLAG = bindings.C.GSS_C_INTEG_FLAG
 C_ANON_FLAG = bindings.C.GSS_C_ANON_FLAG
 C_PROT_READY_FLAG = bindings.C.GSS_C_PROT_READY_FLAG
 C_TRANS_FLAG = bindings.C.GSS_C_TRANS_FLAG
+
 C_BOTH = bindings.C.GSS_C_BOTH
 C_INITIATE = bindings.C.GSS_C_INITIATE
 C_ACCEPT = bindings.C.GSS_C_ACCEPT
+
 C_INDEFINITE = bindings.C.GSS_C_INDEFINITE
+
 C_NT_USER_NAME = bindings.C.GSS_C_NT_USER_NAME
 C_NT_MACHINE_UID_NAME = bindings.C.GSS_C_NT_MACHINE_UID_NAME
 C_NT_STRING_UID_NAME = bindings.C.GSS_C_NT_STRING_UID_NAME
 C_NT_HOSTBASED_SERVICE = bindings.C.GSS_C_NT_HOSTBASED_SERVICE
 C_NT_ANONYMOUS = bindings.C.GSS_C_NT_ANONYMOUS
 C_NT_EXPORT_NAME = bindings.C.GSS_C_NT_EXPORT_NAME
+
+C_AF_UNSPEC = bindings.C.GSS_C_AF_UNSPEC
+C_AF_LOCAL = bindings.C.GSS_C_AF_LOCAL
+C_AF_INET = bindings.C.GSS_C_AF_INET
+C_AF_IMPLINK = bindings.C.GSS_C_AF_IMPLINK
+C_AF_PUP = bindings.C.GSS_C_AF_PUP
+C_AF_CHAOS = bindings.C.GSS_C_AF_CHAOS
+C_AF_NS = bindings.C.GSS_C_AF_NS
+C_AF_NBS = bindings.C.GSS_C_AF_NBS
+C_AF_ECMA = bindings.C.GSS_C_AF_ECMA
+C_AF_DATAKIT = bindings.C.GSS_C_AF_DATAKIT
+C_AF_CCITT = bindings.C.GSS_C_AF_CCITT
+C_AF_SNA = bindings.C.GSS_C_AF_SNA
+C_AF_DECnet = bindings.C.GSS_C_AF_DECnet
+C_AF_DLI = bindings.C.GSS_C_AF_DLI
+C_AF_LAT = bindings.C.GSS_C_AF_LAT
+C_AF_HYLINK = bindings.C.GSS_C_AF_HYLINK
+C_AF_APPLETALK = bindings.C.GSS_C_AF_APPLETALK
+C_AF_BSC = bindings.C.GSS_C_AF_BSC
+C_AF_DSS = bindings.C.GSS_C_AF_DSS
+C_AF_OSI = bindings.C.GSS_C_AF_OSI
+C_AF_X25 = bindings.C.GSS_C_AF_X25
+try:
+    # Only Heimdal defines this, not MIT
+    C_AF_INET6 = bindings.C.GSS_C_AF_INET6
+except AttributeError:
+    pass
+C_AF_NULLADDR = bindings.C.GSS_C_AF_NULLADDR
+
 S_COMPLETE = bindings.C.GSS_S_COMPLETE
 S_CALL_INACCESSIBLE_READ = bindings.C.GSS_S_CALL_INACCESSIBLE_READ
 S_CALL_INACCESSIBLE_WRITE = bindings.C.GSS_S_CALL_INACCESSIBLE_WRITE
@@ -61,3 +93,8 @@ from .ctx import Context, InitContext, AcceptContext
 from .error import GSSException, GSSCException
 from .names import Name, MechName
 from .oids import OID, OIDSet, MutableOIDSet, get_all_mechs
+from .chanbind import ChannelBindings, IPv4ChannelBindings
+try:
+    from .chanbind import IPv6ChannelBindings
+except ImportError:
+    pass

@@ -189,7 +189,7 @@ def _read_header():
     else:
         source, kwargs = _detect_verify_args()
         kwargs = _kwargs_decode(kwargs)
-        optional_defines = ('GSS_C_DELEG_POLICY_FLAG',)
+        optional_defines = ('GSS_C_DELEG_POLICY_FLAG', 'GSS_C_AF_INET6')
         ptr_types_to_detect = ('gss_ctx_id_t', 'gss_cred_id_t', 'gss_name_t')
         gen_types_to_detect = ('uid_t',)
         generated_cdefs = '/* '
