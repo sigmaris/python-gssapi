@@ -90,7 +90,13 @@ except AttributeError:
     pass
 from .creds import Credential
 from .ctx import Context, InitContext, AcceptContext
-from .error import GSSException, GSSCException
+from .error import (
+    GSSException, GSSCException, GSSMechException, GSSCallingError, GSSRoutineError,
+    InaccessibleRead, InaccessibleWrite, BadStructure, BadMechanism, BadName, BadNameType,
+    BadBindings, BadStatus, BadSignature, NoCredential, NoContext, DefectiveToken,
+    DefectiveCredential, CredentialsExpired, ContextExpired, Failure, BadQOP, Unauthorized,
+    Unavailable, DuplicateElement, NameNotMechName
+)
 from .names import Name, MechName
 from .oids import OID, OIDSet, MutableOIDSet, get_all_mechs
 from .chanbind import ChannelBindings, IPv4ChannelBindings

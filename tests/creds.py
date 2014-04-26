@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import unittest
 
 from gssapi import (
-    Credential, GSSCException,
+    Credential, NoCredential, CredentialsExpired, GSSCException,
     S_NO_CRED, S_CREDENTIALS_EXPIRED, C_INITIATE, C_ACCEPT
 )
 
@@ -23,11 +23,8 @@ class DefaultInitCredentialTest(unittest.TestCase):
         try:
             self.cred = Credential(usage=C_INITIATE)
             self.cred.name
-        except GSSCException as exc:
-            if exc.maj_status in (S_NO_CRED, S_CREDENTIALS_EXPIRED):
-                self.skipTest("No default init credential available, try running with a Kerberos ticket.")
-            else:
-                raise
+        except (NoCredential, CredentialsExpired):
+            self.skipTest("No default init credential available, try running with a Kerberos ticket.")
 
     def test_lifetime(self):
         first_lifetime = self.cred.lifetime

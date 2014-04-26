@@ -6,7 +6,7 @@ import struct
 from pyasn1.codec.ber import decoder
 
 from .bindings import ffi, C, GSS_ERROR
-from .error import GSSCException, GSSException
+from .error import _exception_for_status, GSSException
 
 
 def _release_OID_set(oid_set):
@@ -24,7 +24,7 @@ def get_all_mechs():
     try:
         retval = C.gss_indicate_mechs(minor_status, mech_set)
         if GSS_ERROR(retval):
-            raise GSSCException(retval, minor_status[0])
+            raise _exception_for_status(retval, minor_status[0])
     except:
         _release_OID_set(mech_set)
         raise
@@ -120,7 +120,7 @@ class OIDSet(object):
             try:
                 retval = C.gss_create_empty_oid_set(minor_status, self._oid_set)
                 if GSS_ERROR(retval):
-                    raise GSSCException(retval, minor_status[0])
+                    raise _exception_for_status(retval, minor_status[0])
                 self._oid_set = ffi.gc(self._oid_set, _release_OID_set)
             except:
                 _release_OID_set(self._oid_set)
@@ -185,8 +185,8 @@ class OIDSet(object):
 
         minor_status = ffi.new('OM_uint32[1]')
         retval = C.gss_add_oid_set_member(minor_status, oid_ptr, new_set._oid_set)
-        if retval != C.GSS_S_COMPLETE:
-            raise GSSCException(retval, minor_status[0])
+        if GSS_ERROR(retval):
+            raise _exception_for_status(retval, minor_status[0])
         return new_set
 
     def __ne__(self, other):
@@ -242,7 +242,7 @@ class MutableOIDSet(OIDSet):
 
             minor_status = ffi.new('OM_uint32[1]')
             retval = C.gss_add_oid_set_member(minor_status, oid_ptr, self._oid_set)
-            if retval != C.GSS_S_COMPLETE:
-                raise GSSCException(retval, minor_status[0])
+            if GSS_ERROR(retval):
+                raise _exception_for_status(retval, minor_status[0])
         else:
             raise GSSException("Cannot add a member to this OIDSet, its gss_OID_set is NULL!")

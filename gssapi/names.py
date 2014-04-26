@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import six
 
 from .bindings import C, ffi, GSS_ERROR, _buf_to_str
-from .error import GSSCException, GSSException, GSSMechException
+from .error import GSSException, _exception_for_status
 from .oids import OID
 
 
@@ -83,7 +83,7 @@ class Name(object):
         )
         self._name = ffi.gc(self._name, _release_gss_name_t)
         if GSS_ERROR(retval):
-            raise GSSCException(retval, minor_status[0])
+            raise _exception_for_status(retval, minor_status[0])
 
     def __str__(self):
         return self._display().decode()
@@ -108,7 +108,7 @@ class Name(object):
                 minor_status, self._name[0], out_buffer, output_name_type
             )
             if GSS_ERROR(retval):
-                raise GSSCException(retval, minor_status[0])
+                raise _exception_for_status(retval, minor_status[0])
             if with_type:
                 return _buf_to_str(out_buffer[0]), OID(output_name_type[0][0])
             else:
@@ -131,7 +131,7 @@ class Name(object):
                 name_equal
             )
             if GSS_ERROR(retval):
-                raise GSSCException(retval, minor_status[0])
+                raise _exception_for_status(retval, minor_status[0])
             return bool(name_equal[0])
         else:
             return False
@@ -161,7 +161,7 @@ class Name(object):
                 minor_status, self._name[0], ffi.addressof(oid), out_name
             )
             if GSS_ERROR(retval):
-                raise GSSCException(retval, minor_status[0])
+                raise _exception_for_status(retval, minor_status[0])
             return MechName(out_name, mech)
         except:
             C.gss_release_name(minor_status, out_name)
@@ -211,10 +211,10 @@ class MechName(Name):
         )
         try:
             if GSS_ERROR(retval):
-                if minor_status and self._mech_type:
-                    raise GSSMechException(retval, minor_status[0], self._mech_type)
+                if minor_status[0] and self._mech_type:
+                    raise _exception_for_status(retval, minor_status[0], self._mech_type)
                 else:
-                    raise GSSCException(retval, minor_status[0])
+                    raise _exception_for_status(retval, minor_status[0])
 
             return _buf_to_str(output_buffer[0])
         finally:

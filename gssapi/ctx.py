@@ -4,7 +4,7 @@ import functools
 import operator
 
 from .bindings import ffi, C, GSS_ERROR, _buf_to_str
-from .error import GSSCException, GSSException, GSSMechException
+from .error import GSSException, _exception_for_status
 from .names import MechName, Name
 from .oids import OID
 from .creds import Credential
@@ -173,9 +173,9 @@ class Context(object):
         try:
             if GSS_ERROR(retval):
                 if minor_status[0] and self.mech_type:
-                    raise GSSMechException(retval, minor_status[0], self.mech_type)
+                    raise _exception_for_status(retval, minor_status[0], self.mech_type)
                 else:
-                    raise GSSCException(retval, minor_status[0])
+                    raise _exception_for_status(retval, minor_status[0])
 
             output_token = _buf_to_str(output_token_buffer[0])
             return output_token
@@ -222,9 +222,9 @@ class Context(object):
         )
         if GSS_ERROR(retval):
             if minor_status[0] and self.mech_type:
-                raise GSSMechException(retval, minor_status[0], self.mech_type)
+                raise _exception_for_status(retval, minor_status[0], self.mech_type)
             else:
-                raise GSSCException(retval, minor_status[0])
+                raise _exception_for_status(retval, minor_status[0])
         return qop_state[0]
 
     def wrap(self, message, conf_req=True, qop_req=C.GSS_C_QOP_DEFAULT):
@@ -271,9 +271,9 @@ class Context(object):
         try:
             if GSS_ERROR(retval):
                 if minor_status[0] and self.mech_type:
-                    raise GSSMechException(retval, minor_status[0], self.mech_type)
+                    raise _exception_for_status(retval, minor_status[0], self.mech_type)
                 else:
-                    raise GSSCException(retval, minor_status[0])
+                    raise _exception_for_status(retval, minor_status[0])
 
             output_token = _buf_to_str(output_token_buffer[0])
             if conf_req and not conf_state[0]:
@@ -323,9 +323,9 @@ class Context(object):
         try:
             if GSS_ERROR(retval):
                 if minor_status[0] and self.mech_type:
-                    raise GSSMechException(retval, minor_status[0], self.mech_type)
+                    raise _exception_for_status(retval, minor_status[0], self.mech_type)
                 else:
-                    raise GSSCException(retval, minor_status[0])
+                    raise _exception_for_status(retval, minor_status[0])
 
             output = _buf_to_str(output_buffer[0])
             if conf_req and not conf_state[0]:
@@ -364,9 +364,9 @@ class Context(object):
         )
         if GSS_ERROR(retval):
             if minor_status[0] and self.mech_type:
-                raise GSSMechException(retval, minor_status[0], self.mech_type)
+                raise _exception_for_status(retval, minor_status[0], self.mech_type)
             else:
-                raise GSSCException(retval, minor_status[0])
+                raise _exception_for_status(retval, minor_status[0])
 
         return max_input_size[0]
 
@@ -397,9 +397,9 @@ class Context(object):
         try:
             if GSS_ERROR(retval):
                 if minor_status[0] and self.mech_type:
-                    raise GSSMechException(retval, minor_status[0], self.mech_type)
+                    raise _exception_for_status(retval, minor_status[0], self.mech_type)
                 else:
-                    raise GSSCException(retval, minor_status[0])
+                    raise _exception_for_status(retval, minor_status[0])
 
             exported_token = _buf_to_str(output_token_buffer[0])
             # Set our context to a 'blank' context
@@ -434,7 +434,7 @@ class Context(object):
         )
         try:
             if GSS_ERROR(retval):
-                raise GSSCException(retval, minor_status[0])
+                raise _exception_for_status(retval, minor_status[0])
 
             src_name = ffi.new('gss_name_t[1]')
             target_name = ffi.new('gss_name_t[1]')
@@ -456,7 +456,7 @@ class Context(object):
             src_name = Name(src_name)
             target_name = Name(target_name)
             if GSS_ERROR(retval):
-                raise GSSCException(retval, minor_status[0])
+                raise _exception_for_status(retval, minor_status[0])
 
             mech = OID(mech_type[0][0]) if mech_type[0] else None
 
@@ -503,9 +503,9 @@ class Context(object):
         )
         if GSS_ERROR(retval):
             if minor_status[0] and self.mech_type:
-                raise GSSMechException(retval, minor_status[0], self.mech_type)
+                raise _exception_for_status(retval, minor_status[0], self.mech_type)
             else:
-                raise GSSCException(retval, minor_status[0])
+                raise _exception_for_status(retval, minor_status[0])
         return lifetime_rec[0]
 
     def delete(self):
@@ -536,9 +536,9 @@ class Context(object):
         try:
             if GSS_ERROR(retval):
                 if minor_status[0] and self.mech_type:
-                    raise GSSMechException(retval, minor_status[0], self.mech_type)
+                    raise _exception_for_status(retval, minor_status[0], self.mech_type)
                 else:
-                    raise GSSCException(retval, minor_status[0])
+                    raise _exception_for_status(retval, minor_status[0])
 
             return _buf_to_str(output_token_buffer[0])
         finally:
@@ -669,9 +669,9 @@ class InitContext(Context):
 
             if GSS_ERROR(retval):
                 if minor_status[0] and actual_mech[0]:
-                    raise GSSMechException(retval, minor_status[0], actual_mech[0], out_token)
+                    raise _exception_for_status(retval, minor_status[0], actual_mech[0], out_token)
                 else:
-                    raise GSSCException(retval, minor_status[0], out_token)
+                    raise _exception_for_status(retval, minor_status[0], None, out_token)
 
             self.established = not (retval & C.GSS_S_CONTINUE_NEEDED)
             self.flags = actual_flags[0]
@@ -800,9 +800,9 @@ class AcceptContext(Context):
 
             if GSS_ERROR(retval):
                 if minor_status[0] and mech_type[0]:
-                    raise GSSMechException(retval, minor_status[0], mech_type[0], out_token)
+                    raise _exception_for_status(retval, minor_status[0], mech_type[0], out_token)
                 else:
-                    raise GSSCException(retval, minor_status[0], out_token)
+                    raise _exception_for_status(retval, minor_status[0], None, out_token)
 
             self.established = not (retval & C.GSS_S_CONTINUE_NEEDED)
             self.flags = actual_flags[0]

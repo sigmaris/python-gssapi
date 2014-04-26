@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 from .bindings import C, ffi, GSS_ERROR
-from .error import GSSCException
+from .error import _exception_for_status
 from .names import Name
 from .oids import OIDSet
 
@@ -83,7 +83,7 @@ class Credential(object):
         if GSS_ERROR(retval):
             if actual_mechs[0]:
                 C.gss_release_oid_set(minor_status, actual_mechs)
-            raise GSSCException(retval, minor_status[0])
+            raise _exception_for_status(retval, minor_status[0])
 
         self._mechs = OIDSet(actual_mechs)
 
@@ -141,7 +141,7 @@ class Credential(object):
 
         try:
             if GSS_ERROR(retval):
-                raise GSSCException(retval, minor_status[0])
+                raise _exception_for_status(retval, minor_status[0])
         except:
             if get_name and name[0]:
                 C.gss_release_name(minor_status, name)
