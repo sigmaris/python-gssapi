@@ -549,7 +549,7 @@ class Context(object):
 class InitContext(Context):
     """
     An instance of this class can be used to initiate a secure context between two applications.
-    The application using `InitContext` must specify the :class:`~gssapi.names.Name` of the
+    The application using :class:`InitContext` must specify the :class:`~gssapi.names.Name` of the
     acceptor it wants to connect to, and send the first token it obtains from :meth:`step` to the
     acceptor. The acceptor should then respond and proceed with the establishment of the security
     context.
