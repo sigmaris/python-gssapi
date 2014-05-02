@@ -323,7 +323,7 @@ def _exception_for_status(maj_status, min_status, mech_type=None, token=None):
             (InaccessibleWrite, C.GSS_S_CALL_INACCESSIBLE_WRITE),
             (BadStructure, C.GSS_S_CALL_BAD_STRUCTURE),
         ):
-            if maj_status == status:
+            if GSS_CALLING_ERROR(maj_status) == status:
                 exc_types.append(exc_class)
                 exc_name += exc_class.__name__
                 break
@@ -348,7 +348,7 @@ def _exception_for_status(maj_status, min_status, mech_type=None, token=None):
             (DuplicateElement, C.GSS_S_DUPLICATE_ELEMENT),
             (NameNotMechName, C.GSS_S_NAME_NOT_MN),
         ):
-            if maj_status == status:
+            if GSS_ROUTINE_ERROR(maj_status) == status:
                 exc_types.append(exc_class)
                 exc_name += exc_class.__name__
                 break
