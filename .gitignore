@@ -20,6 +20,8 @@ lib64
 
 #Virtualenv
 /venv
+/venv3
+/pypyvenv
 
 # Installer logs
 pip-log.txt
