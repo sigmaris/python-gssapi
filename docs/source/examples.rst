@@ -60,10 +60,10 @@ Integrity protection
 ^^^^^^^^^^^^^^^^^^^^
 
 Integrity protection is provided by the :meth:`~gssapi.ctx.Context.get_mic` and
-:meth:`~gssapi.ctx.Context.verify_mic` methods on :class:`~gssapi.ctx.Context`. The MIC is a small
-token which can be calculated over a message by one peer, then sent along with that message to the
-other peer and verified at the other end. If the message (or the MIC) have been tampered with in
-transit, the verification will fail.
+:meth:`~gssapi.ctx.Context.verify_mic` methods on :class:`~gssapi.ctx.Context`. The message
+integrity code (MIC) is a small token which can be calculated over a message by one peer, then sent
+along with that message to the other peer and verified at the other end. If the message (or the
+MIC) have been modified in transit, the verification will fail.
 
 In order to use integrity protection, the initiator should include :const:`gssapi.C_INTEG_FLAG` in
 the ``req_flags`` parameter to :class:`~gssapi.ctx.InitContext`:
@@ -106,6 +106,59 @@ Then, the peer on the other end of the connection can verify that MIC:
             peer_connection.close()
         else:
             # MIC is OK, continue..
+            do_something_with(message)
+
+Confidentiality and Integrity
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Confidentiality and integrity protection together are provided by the
+:meth:`~gssapi.ctx.Context.wrap` and :meth:`~gssapi.ctx.Context.unwrap` methods on
+:class:`~gssapi.ctx.Context`. :meth:`~gssapi.ctx.Context.wrap` takes a message and returns an
+(optionally) encrypted token containing the message and a MIC. The token can then be passed to
+:meth:`~gssapi.ctx.Context.unwrap` by the peer, to verify the MIC and obtain the original message.
+Note the ``conf_req`` parameter to :meth:`~gssapi.ctx.Context.wrap` - if this is False, no
+encryption is performed, but if it is True (the default) the wrapped message is encrypted.
+
+In order to use confidentiality and integrity protection, the initiator should include
+:const:`gssapi.C_INTEG_FLAG` and :const:`gssapi.C_CONF_FLAG` in the ``req_flags`` parameter to
+:class:`~gssapi.ctx.InitContext`:
+
+.. code-block:: python
+
+    target_name = gssapi.Name('demo@example.org', gssapi.C_NT_HOSTBASED_SERVICE)
+    ctx = gssapi.InitContext(self.target_name, req_flags=(gssapi.C_INTEG_FLAG, gssapi.C_CONF_FLAG))
+
+Then, after the context has been established, both the initiator and acceptor should check that
+confidentiality and integrity protection have been negotiated successfully. If it can't be
+negotiated, the application will normally want to stop communication. Otherwise, the
+:meth:`~gssapi.ctx.Context.wrap` method can be used:
+
+.. code-block:: python
+
+    if not ctx.integrity_negotiated or not ctx.confidentiality_negotiated:
+        peer_connection.send_msg(b"Error: Confidentiality or Integrity protection not negotiated")
+        peer_connection.close()
+    else:
+        message = b"This is an application message"
+        wrapped = ctx.wrap(message)
+        peer_connection.send_msg(wrapped)
+
+The peer on the other end of the connection can unwrap the encrypted token and verify the MIC:
+
+.. code-block:: python
+
+    if not ctx.integrity_negotiated or not ctx.confidentiality_negotiated:
+        peer_connection.send_msg(b"Error: Confidentiality or Integrity protection not negotiated")
+        peer_connection.close()
+    else:
+        wrapped = peer_connection.recv_msg()
+        try:
+            message = ctx.unwrap(wrapped)
+        except gssapi.GSSException:
+            # Unwrapping failed!
+            peer_connection.close()
+        else:
+            do_something_with(message)
 
 Real-World Use
 --------------
