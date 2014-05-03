@@ -183,18 +183,21 @@ class GSSRoutineError(GSSCException):
 class InaccessibleRead(GSSCallingError):
     """
     A required input parameter could not be read.
+    Corresponds to a status of :attr:`~gssapi.S_CALL_INACCESSIBLE_READ`.
     """
 
 
 class InaccessibleWrite(GSSCallingError):
     """
     A required output parameter could not be written.
+    Corresponds to a status of :attr:`~gssapi.S_CALL_INACCESSIBLE_WRITE`.
     """
 
 
 class BadStructure(GSSCallingError):
     """
     A parameter was malformed.
+    Corresponds to a status of :attr:`~gssapi.S_CALL_BAD_STRUCTURE`.
     """
 
 
@@ -202,108 +205,126 @@ class BadStructure(GSSCallingError):
 class BadMechanism(GSSRoutineError):
     """
     An unsupported mechanism was requested.
+    Corresponds to a status of :attr:`~gssapi.S_BAD_MECH`.
     """
 
 
 class BadName(GSSRoutineError):
     """
     An invalid name was supplied.
+    Corresponds to a status of :attr:`~gssapi.S_BAD_NAME`.
     """
 
 
 class BadNameType(GSSRoutineError):
     """
     A supplied name was of an unsupported type.
+    Corresponds to a status of :attr:`~gssapi.S_BAD_NAMETYPE`.
     """
 
 
 class BadBindings(GSSRoutineError):
     """
     Incorrect channel bindings were supplied.
+    Corresponds to a status of :attr:`~gssapi.S_BAD_BINDINGS`.
     """
 
 
 class BadStatus(GSSRoutineError):
     """
     An invalid status code was supplied.
+    Corresponds to a status of :attr:`~gssapi.S_BAD_STATUS`.
     """
 
 
 class BadSignature(GSSRoutineError):
     """
     A token had an invalid MIC.
+    Corresponds to a status of :attr:`~gssapi.S_BAD_SIG`.
     """
 
 
 class NoCredential(GSSRoutineError):
     """
     No credentials were supplied, or the credentials were unavailable or inaccessible.
+    Corresponds to a status of :attr:`~gssapi.S_NO_CRED`.
     """
 
 
 class NoContext(GSSRoutineError):
     """
     No context has been established.
+    Corresponds to a status of :attr:`~gssapi.S_NO_CONTEXT`.
     """
 
 
 class DefectiveToken(GSSRoutineError):
     """
     A token was invalid.
+    Corresponds to a status of :attr:`~gssapi.S_DEFECTIVE_TOKEN`.
     """
 
 
 class DefectiveCredential(GSSRoutineError):
     """
     A credential was invalid.
+    Corresponds to a status of :attr:`~gssapi.S_DEFECTIVE_CREDENTIAL`.
     """
 
 
 class CredentialsExpired(GSSRoutineError):
     """
     The referenced credentials have expired.
+    Corresponds to a status of :attr:`~gssapi.S_CREDENTIALS_EXPIRED`.
     """
 
 
 class ContextExpired(GSSRoutineError):
     """
     The context has expired.
+    Corresponds to a status of :attr:`~gssapi.S_CONTEXT_EXPIRED`.
     """
 
 
 class Failure(GSSRoutineError):
     """
     Miscellaneous failure.
+    Corresponds to a status of :attr:`~gssapi.S_FAILURE`.
     """
 
 
 class BadQOP(GSSRoutineError):
     """
     The quality-of-protection requested could not be provided.
+    Corresponds to a status of :attr:`~gssapi.S_BAD_QOP`.
     """
 
 
 class Unauthorized(GSSRoutineError):
     """
     The operation is forbidden by local security policy.
+    Corresponds to a status of :attr:`~gssapi.S_UNAUTHORIZED`.
     """
 
 
 class Unavailable(GSSRoutineError):
     """
     The operation or option is unavailable.
+    Corresponds to a status of :attr:`~gssapi.S_UNAVAILABLE`.
     """
 
 
 class DuplicateElement(GSSRoutineError):
     """
     The requested credential element already exists.
+    Corresponds to a status of :attr:`~gssapi.S_DUPLICATE_ELEMENT`.
     """
 
 
 class NameNotMechName(GSSRoutineError):
     """
     The provided name was not a mechanism name.
+    Corresponds to a status of :attr:`~gssapi.S_NAME_NOT_MN`.
     """
 
 
