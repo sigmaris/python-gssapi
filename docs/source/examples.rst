@@ -56,6 +56,57 @@ pointed to by the ``KRB5_KTNAME`` environment variable, when running this:
     else:
         print("An anonymous client authenticated successfully.")
 
+Integrity protection
+^^^^^^^^^^^^^^^^^^^^
+
+Integrity protection is provided by the :meth:`~gssapi.ctx.Context.get_mic` and
+:meth:`~gssapi.ctx.Context.verify_mic` methods on :class:`~gssapi.ctx.Context`. The MIC is a small
+token which can be calculated over a message by one peer, then sent along with that message to the
+other peer and verified at the other end. If the message (or the MIC) have been tampered with in
+transit, the verification will fail.
+
+In order to use integrity protection, the initiator should include :const:`gssapi.C_INTEG_FLAG` in
+the ``req_flags`` parameter to :class:`~gssapi.ctx.InitContext`:
+
+.. code-block:: python
+
+    service_name = gssapi.Name('demo@example.org', gssapi.C_NT_HOSTBASED_SERVICE)
+    ctx = gssapi.InitContext(self.service_name, req_flags=(gssapi.C_INTEG_FLAG,))
+
+Then, after the context has been established, both the initiator and acceptor should check that
+integrity protection has been negotiated successfully. If it can't be negotiated, the
+application will normally want to stop communication. Otherwise, the
+:meth:`~gssapi.ctx.Context.get_mic` method can be used to calculate a MIC for messages:
+
+.. code-block:: python
+
+    if not ctx.integrity_negotiated:
+        peer_connection.send_msg(b"Error: Integrity protection not negotiated")
+        peer_connection.close()
+    else:
+        message = b"This is an application message"
+        mic = ctx.get_mic(message)
+        peer_connection.send_msg(message)
+        peer_connection.send_msg(mic)
+
+Then, the peer on the other end of the connection can verify that MIC:
+
+.. code-block:: python
+
+    if not ctx.integrity_negotiated:
+        peer_connection.send_msg(b"Error: Integrity protection not negotiated")
+        peer_connection.close()
+    else:
+        message = peer_connection.recv_msg()
+        mic = peer_connection.recv_msg()
+        try:
+            ctx.verify_mic(message, mic)
+        except gssapi.GSSException:
+            # MIC verification failed!
+            peer_connection.close()
+        else:
+            # MIC is OK, continue..
+
 Real-World Use
 --------------
 
@@ -82,12 +133,9 @@ Kerberos single-sign-on), as part of a Python web-application:
         # The browser is authenticating using GSSAPI, trim off 'Negotiate ' and decode:
         in_token = base64.b64decode(request.headers['Authorization'][10:])
 
-        # Select the SPNEGO mechanism and build a credential
-        spnego_mech = gssapi.OID.mech_from_string('1.3.6.1.5.5.2')
-        mech_set = gssapi.OIDSet.singleton_set(spnego_mech)
         # Our service name should be HTTP, in uppercase
         service_name = gssapi.Name('HTTP@example.org', gssapi.C_NT_HOSTBASED_SERVICE)
-        server_cred = gssapi.Credential(service_name, desired_mechs=mech_set, usage=gssapi.C_ACCEPT)
+        server_cred = gssapi.Credential(service_name, usage=gssapi.C_ACCEPT)
         ctx = gssapi.AcceptContext(server_cred)
 
         # Feed the input token to the context, and get an output token in return
