@@ -55,14 +55,14 @@ class ClientIntegrationTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-         cls.logger.info("*** client starting shutdown ***")
-         sock, sockfile = cls._connect()
-         ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE))
-         cls._handshake(sockfile, ctx)
-         cls.logger.info("*** client sending SHUTDOWN command ***")
-         sockfile.write(b'!SHUTDOWN\n')
-         sockfile.close()
-         sock.close()
+        cls.logger.info("*** client starting shutdown ***")
+        sock, sockfile = cls._connect()
+        ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE))
+        cls._handshake(sockfile, ctx)
+        cls.logger.info("*** client sending SHUTDOWN command ***")
+        sockfile.write(b'!SHUTDOWN\n')
+        sockfile.close()
+        sock.close()
 
     def test_basic_handshake(self):
         ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE))
