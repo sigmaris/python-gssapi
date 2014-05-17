@@ -778,9 +778,9 @@ class AcceptContext(Context):
     context on the acceptor side. The initiator is normally authenticated as part of the context
     establishment process, though some mechanisms support anonymous peers.
 
-    :param cred: The credential to use for the acceptor. Omit this parameter or pass
-        :const:`gssapi.C_NO_CREDENTIAL` to use the default acceptor credentials (e.g. any principal
-        in the default keytab, when the Kerberos mechanism is used).
+    :param cred: The credential to use for the acceptor. Omit this parameter to use the default
+        acceptor credentials (e.g. any principal in the default keytab, when the Kerberos mechanism
+        is used).
     :type cred: :class:`~gssapi.creds.Credential`
     :param input_chan_bindings: Optional channel bindings object, to bind this security context to
         an underlying communications channel.
