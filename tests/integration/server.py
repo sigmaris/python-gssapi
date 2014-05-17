@@ -7,7 +7,7 @@ if six.PY3:
 else:
     import SocketServer as socketserver
 
-from gssapi import AcceptContext
+from gssapi import AcceptContext, S_DUPLICATE_TOKEN, S_GAP_TOKEN, S_UNSEQ_TOKEN
 
 
 class GSSAPIHandler(socketserver.BaseRequestHandler):
@@ -56,6 +56,12 @@ class GSSAPIHandler(socketserver.BaseRequestHandler):
             self._delegated_cred_test(ctx)
         elif client_command == b'!MECHTYPE':
             self._writeline(six.text_type(ctx.mech_type).encode('utf-8'))
+        elif client_command == b'!REPLAYTEST':
+            self._replay_test(ctx)
+        elif client_command == b'!GAPTEST':
+            self._gap_test(ctx)
+        elif client_command == b'!UNSEQTEST':
+            self._unseq_test(ctx)
 
     def _wrap_test(self, ctx):
         if not ctx.confidentiality_negotiated:
@@ -101,6 +107,96 @@ class GSSAPIHandler(socketserver.BaseRequestHandler):
             self._writeline(six.text_type(ctx.delegated_cred.lifetime).encode('utf-8'))
         else:
             self._writeline(b'!NOCRED')
+
+    def _replay_test(self, ctx):
+        if not ctx.replay_detection_negotiated:
+            print("REPLAYTEST: no replay_detection_negotiated")
+            self._writeline(b'!ERROR')
+            return
+        # Client should send message 1, message 2, then replayed message 1
+        try:
+            msg1 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+            msg2 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+            msg3 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+        except:
+            self._writeline(b'!ERROR')
+            raise
+        for msg, expected, flag in (
+            (msg1, b'msg_from_client1', None),
+            (msg2, b'msg_from_client2', None),
+            (msg3, b'msg_from_client1', S_DUPLICATE_TOKEN)
+        ):
+            if msg[0] != expected or (flag and flag not in msg[1]):
+                print("REPLAYTEST: unexpected message {0!r}".format(msg))
+                self._writeline(b'!ERROR')
+                return
+        # Server sends message 1, message 2, then replayed message 1
+        msg1 = ctx.wrap(b'msg_from_server1')
+        msg2 = ctx.wrap(b'msg_from_server2')
+        self._writeline(base64.b64encode(msg1))
+        self._writeline(base64.b64encode(msg2))
+        self._writeline(base64.b64encode(msg1))
+
+    def _gap_test(self, ctx):
+        if not ctx.sequence_detection_negotiated:
+            print("GAPTEST: no sequence_detection_negotiated")
+            self._writeline(b'!ERROR')
+            return
+        if not ctx.replay_detection_negotiated:
+            print("GAPTEST: no replay_detection_negotiated")
+            self._writeline(b'!ERROR')
+            return
+        # Client should wrap message 1, message 2, message 3, then only send msg 1 and 3
+        try:
+            msg1 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+            msg2 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+        except:
+            self._writeline(b'!ERROR')
+            raise
+        for msg, expected, flag in (
+            (msg1, b'msg_from_client1', None),
+            (msg2, b'msg_from_client3', S_GAP_TOKEN),
+        ):
+            if msg[0] != expected or (flag and flag not in msg[1]):
+                print("GAPTEST: unexpected message {0!r}".format(msg))
+                self._writeline(b'!ERROR')
+                return
+        # Server wraps message 1, message 2, message 3, then only sends msg 1 and 3
+        msg1 = ctx.wrap(b'msg_from_server1')
+        msg2 = ctx.wrap(b'msg_from_server2')
+        msg3 = ctx.wrap(b'msg_from_server3')
+        self._writeline(base64.b64encode(msg1))
+        self._writeline(base64.b64encode(msg3))
+
+    def _unseq_test(self, ctx):
+        if not ctx.sequence_detection_negotiated:
+            print("UNSEQTEST: no sequence_detection_negotiated")
+            self._writeline(b'!ERROR')
+            return
+        # Client should wrap message 1, message 2, message 3, then send msg 1, 3, 2
+        try:
+            msg1 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+            msg2 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+            msg3 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+        except:
+            self._writeline(b'!ERROR')
+            raise
+        for msg, expected, flag in (
+            (msg1, b'msg_from_client1', None),
+            (msg2, b'msg_from_client3', None),
+            (msg3, b'msg_from_client2', S_UNSEQ_TOKEN),
+        ):
+            if msg[0] != expected or (flag and flag not in msg[1]):
+                print("UNSEQTEST: unexpected message {0!r}".format(msg))
+                self._writeline(b'!ERROR')
+                return
+        # Server wraps message 1, message 2, message 3, then sends msg 1, 3, 2
+        msg1 = ctx.wrap(b'msg_from_server1')
+        msg2 = ctx.wrap(b'msg_from_server2')
+        msg3 = ctx.wrap(b'msg_from_server3')
+        self._writeline(base64.b64encode(msg1))
+        self._writeline(base64.b64encode(msg3))
+        self._writeline(base64.b64encode(msg2))
 
 
 if __name__ == '__main__':

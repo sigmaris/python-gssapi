@@ -5,7 +5,8 @@ import sys
 import unittest
 
 from gssapi import (InitContext, Name, Credential, C_NT_HOSTBASED_SERVICE, C_CONF_FLAG,
-                    C_INTEG_FLAG, C_DELEG_FLAG, C_INITIATE)
+                    C_INTEG_FLAG, C_DELEG_FLAG, C_REPLAY_FLAG, C_SEQUENCE_FLAG, C_INITIATE,
+                    S_DUPLICATE_TOKEN, S_GAP_TOKEN, S_UNSEQ_TOKEN)
 
 logging.basicConfig()
 
@@ -138,3 +139,62 @@ class ClientIntegrationTest(unittest.TestCase):
         self._handshake(self.sockfile, ctx)
         self._writeline(b'!MECHTYPE')
         self.assertEqual(self.sockfile.readline().strip().decode('utf-8'), str(ctx.mech_type))
+
+    def test_replay(self):
+        ctx = InitContext(
+            Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE),
+            req_flags=(C_REPLAY_FLAG,)
+        )
+        self._handshake(self.sockfile, ctx)
+        self._writeline(b'!REPLAYTEST')
+        msg1 = ctx.wrap(b'msg_from_client1')
+        msg2 = ctx.wrap(b'msg_from_client2')
+        self._writeline(base64.b64encode(msg1))
+        self._writeline(base64.b64encode(msg2))
+        self._writeline(base64.b64encode(msg1))
+        msg1, supp1 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+        msg2, supp2 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+        msg3, supp3 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+        self.assertEqual(msg1, b'msg_from_server1')
+        self.assertEqual(msg2, b'msg_from_server2')
+        self.assertEqual(msg3, b'msg_from_server1')
+        self.assertIn(S_DUPLICATE_TOKEN, supp3)
+
+    def test_gap(self):
+        ctx = InitContext(
+            Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE),
+            req_flags=(C_REPLAY_FLAG, C_SEQUENCE_FLAG)
+        )
+        self._handshake(self.sockfile, ctx)
+        self._writeline(b'!GAPTEST')
+        msg1 = ctx.wrap(b'msg_from_client1')
+        msg2 = ctx.wrap(b'msg_from_client2')
+        msg3 = ctx.wrap(b'msg_from_client3')
+        self._writeline(base64.b64encode(msg1))
+        self._writeline(base64.b64encode(msg3))
+        msg1, supp1 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+        msg2, supp2 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+        self.assertEqual(msg1, b'msg_from_server1')
+        self.assertEqual(msg2, b'msg_from_server3')
+        self.assertIn(S_GAP_TOKEN, supp2)
+
+    def test_unseq(self):
+        ctx = InitContext(
+            Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE),
+            req_flags=(C_SEQUENCE_FLAG,)
+        )
+        self._handshake(self.sockfile, ctx)
+        self._writeline(b'!UNSEQTEST')
+        msg1 = ctx.wrap(b'msg_from_client1')
+        msg2 = ctx.wrap(b'msg_from_client2')
+        msg3 = ctx.wrap(b'msg_from_client3')
+        self._writeline(base64.b64encode(msg1))
+        self._writeline(base64.b64encode(msg3))
+        self._writeline(base64.b64encode(msg2))
+        msg1, supp1 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+        msg2, supp2 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+        msg3, supp3 = ctx.unwrap(base64.b64decode(self.sockfile.readline()), supplementary=True)
+        self.assertEqual(msg1, b'msg_from_server1')
+        self.assertEqual(msg2, b'msg_from_server3')
+        self.assertEqual(msg3, b'msg_from_server2')
+        self.assertIn(S_UNSEQ_TOKEN, supp3)
