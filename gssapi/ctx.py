@@ -424,7 +424,9 @@ class Context(object):
         * when the initiator's context is established successfully but the acceptor's context isn't
           and the acceptor needs to signal to the initiator that the context shouldn't be used.
         * if :meth:`delete` on one peer's context returns a final token that can be passed to the
-          other peer to indicate the other peer's context should be torn down as well.
+          other peer to indicate the other peer's context should be torn down as well (though it's
+          recommended that :meth:`delete` should return nothing, i.e. this method should not be
+          used by GSSAPI mechanisms).
 
         :param context_token: The context token to pass to the security context
         :type context_token: bytes
@@ -590,13 +592,16 @@ class Context(object):
         """
         Delete a security context. This method will delete the local data structures associated
         with the specified security context, and may return an output token, which when passed to
-        :meth:`process_context_token` on the peer will instruct it to do likewise.
+        :meth:`process_context_token` on the peer may instruct it to also delete its context.
+
+        RFC 2744 recommends that GSSAPI mechanisms do not emit any output token when they're
+        deleted, so this behaviour could be considered deprecated.
 
         After this method is called, this security context will become invalid and should not be
         used in any way.
 
-        :returns: An output token if one should be passed to :meth:`process_context_token` on the
-            peer, otherwise an empty bytestring.
+        :returns: An output token if one was emitted by the GSSAPI mechanism, otherwise an empty
+            bytestring.
         :rtype: bytes
         """
 
