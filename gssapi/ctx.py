@@ -415,6 +415,39 @@ class Context(object):
 
         return max_input_size[0]
 
+    def process_context_token(self, context_token):
+        """
+        Provides a way to pass an asynchronous token to the security context, outside of the normal
+        context-establishment token passing flow. This method is not normally used, but some
+        example uses are:
+
+        * when the initiator's context is established successfully but the acceptor's context isn't
+          and the acceptor needs to signal to the initiator that the context shouldn't be used.
+        * if :meth:`delete` on one peer's context returns a final token that can be passed to the
+          other peer to indicate the other peer's context should be torn down as well.
+
+        :param context_token: The context token to pass to the security context
+        :type context_token: bytes
+        :raises: :exc:`~gssapi.error.DefectiveToken` if consistency checks on the token failed.
+            :exc:`~gssapi.error.NoContext` if this context is invalid.
+            :exc:`~gssapi.error.GSSException` for any other GSSAPI errors.
+        """
+        minor_status = ffi.new('OM_uint32[1]')
+        context_token_buffer = ffi.new('gss_buffer_desc[1]')
+        context_token_buffer[0].length = len(context_token)
+        c_str_context_token = ffi.new('char[]', context_token)
+        context_token_buffer[0].value = c_str_context_token
+        retval = C.gss_process_context_token(
+            minor_status,
+            self._ctx[0],
+            context_token_buffer
+        )
+        if GSS_ERROR(retval):
+            if minor_status[0] and self.mech_type:
+                raise _exception_for_status(retval, minor_status[0], self.mech_type)
+            else:
+                raise _exception_for_status(retval, minor_status[0])
+
     def export(self):
         """
         This method deactivates the security context for the calling process and returns an
