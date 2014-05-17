@@ -373,9 +373,11 @@ def _exception_for_status(maj_status, min_status, mech_type=None, token=None):
                 exc_types.append(exc_class)
                 exc_name += exc_class.__name__
                 break
-        if len(exc_types) == 1:
-            # It is a simple error
-            return exc_types[0](*exc_args)
-        else:
-            # It's an error of more than one of the above types
-            return type(exc_name, tuple(exc_types), {})(*exc_args)
+    if len(exc_types) == 0:
+        return GSSCException(*exc_args)
+    elif len(exc_types) == 1:
+        # It is a simple error
+        return exc_types[0](*exc_args)
+    else:
+        # It's an error of more than one of the above types
+        return type(exc_name, tuple(exc_types), {})(*exc_args)
