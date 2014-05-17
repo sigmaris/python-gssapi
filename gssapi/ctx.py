@@ -37,8 +37,8 @@ class Context(object):
     messages exchanged with the peer.
 
     This class is not particularly useful in itself, but holds common functionality for all types
-    of context. To use a context as the initiator or acceptor, :class:`InitContext` or
-    :class:`AcceptContext` should be used, respectively.
+    of context. To use a context as the initiator or acceptor, create an :class:`InitContext` or
+    :class:`AcceptContext`, respectively.
 
     .. py:attribute:: established
 
@@ -701,7 +701,7 @@ class InitContext(Context):
         :type input_token: bytes
         :returns: either a byte string with the next token to send to the acceptor,
             or None if there is no further token to send to the acceptor.
-        :raises: GSSException
+        :raises: :exc:`~gssapi.error.GSSException` if there is an error establishing the context.
         """
 
         minor_status = ffi.new('OM_uint32[1]')
@@ -840,7 +840,7 @@ class AcceptContext(Context):
         :type input_token: bytes
         :returns: either a byte string with the next token to send to the initiator,
             or None if there is no further token to send to the initiator.
-        :raises: GSSException
+        :raises: :exc:`~gssapi.error.GSSException` if there is an error establishing the context.
         """
         minor_status = ffi.new('OM_uint32[1]')
         input_token_buffer = ffi.new('gss_buffer_desc[1]')

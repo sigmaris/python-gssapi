@@ -140,12 +140,12 @@ Name Types
 Address Types
 ^^^^^^^^^^^^^
 
-These constants represent different address families that can be used as the ``initiator_addrtype``
-or ``acceptor_addrtype`` parameters to :class:`~gssapi.chanbind.ChannelBindings`, to denote the
-type of the initiator and acceptor addresses in the channel bindings. These will generally not be
-useful except in some rare circumstances, as most of these address families are no longer widely
-used, and using IP addresses in GSSAPI channel bindings is deprecated and does not work across NAT.
-They are only included for completeness' sake.
+These constants represent different address families that can be used as the `initiator_addrtype`
+or `acceptor_addrtype` parameters to :class:`~gssapi.chanbind.ChannelBindings`, to denote the type
+of the initiator and acceptor addresses in the channel bindings. These will generally not be useful
+except in some rare circumstances, as most of these address families are no longer widely used, and
+using IP addresses in GSSAPI channel bindings is deprecated and does not work across NAT. They are
+only included for completeness' sake.
 
 .. py:data:: C_AF_UNSPEC
 
@@ -157,7 +157,7 @@ They are only included for completeness' sake.
 
 .. py:data:: C_AF_INET
 
-    Internet address type (e.g. IPv4).
+    Internet address type (IPv4).
 
 .. py:data:: C_AF_IMPLINK
 

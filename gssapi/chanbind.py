@@ -25,8 +25,8 @@ class ChannelBindings(object):
     :type application_data: bytes
 
 
-    The parameters ``initiator_addrtype``, ``application_data``, etc, can also be set as attributes
-    on instances of this class.
+    The parameters `initiator_addrtype`, `application_data`, etc, can also be set as attributes on
+    instances of this class.
     """
 
     def __init__(self, initiator_addrtype=C.GSS_C_AF_NULLADDR, initiator_address=None,
