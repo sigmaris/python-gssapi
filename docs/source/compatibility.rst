@@ -10,3 +10,18 @@ The install process requires generating C interface definitions from the GSSAPI 
 installed and a C compiler must be available at install time. On CPython you need to build the C
 extension module, so you need ``python-dev`` and ``libffi-dev`` installed in order to install
 :mod:`cffi`.
+
+Support for Optional Features
+-----------------------------
+There are certain optional features which may or not be enabled depending on support in the
+underlying GSSAPI C library on the platform. If these features are not supported, the corresponding
+constants or classes will not be present in the Python package, or methods will raise
+:exc:`~exceptions.NotImplementedError` if you attempt to use a feature that is not implemented.
+
+These optional features are:
+
+* :const:`gssapi.C_DELEG_POLICY_FLAG` - in MIT Kerberos, this is only available from v1.7 onwards.
+* :const:`gssapi.C_AF_INET6` and :class:`~gssapi.chanbind.IPv6ChannelBindings` - This is not defined
+  by MIT Kerberos, only Heimdal.
+* :class:`~gssapi.creds.Credential` construction with `password` param - this is only supported in
+  MIT Kerberos v1.9 onwards, and in Heimdal v1.5 and above.

@@ -198,3 +198,12 @@ class ClientIntegrationTest(unittest.TestCase):
         self.assertEqual(msg2, b'msg_from_server3')
         self.assertEqual(msg3, b'msg_from_server2')
         self.assertIn(S_UNSEQ_TOKEN, supp3)
+
+    def test_cred_with_password(self):
+        cred = Credential(
+            Name('testuser@PYTHONGSSAPI.TEST'), usage=C_INITIATE, password=b'userpassword'
+        )
+        ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE), cred)
+        self._handshake(self.sockfile, ctx)
+        self._writeline(b'!MYNAME')
+        self.assertEqual(self.sockfile.readline().strip(), b'testuser@PYTHONGSSAPI.TEST')

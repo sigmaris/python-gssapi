@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+import six
+
 from .bindings import C, ffi, GSS_ERROR
 from .error import _exception_for_status
 from .names import Name
@@ -13,9 +15,15 @@ def _release_gss_cred_id_t(cred):
 
 class Credential(object):
     """
-    Acquire a reference to a pre-existing credential. Use this to create a credential with a
-    specific name to use in an :class:`AcceptContext` or to select a specific identity from the
-    user's credential set to use as an initiator credential.
+    Acquire a reference to a credential. Use this to select a credential with a specific name to
+    use in an :class:`~gssapi.ctx.AcceptContext`, to select a specific identity from the user's
+    credential set to use as an initiator credential, or to obtain a credential using a password.
+
+    Note that obtaining a credential using a password is a nonstandard extension to the GSSAPI and
+    may not be supported by the underlying implementation (see :doc:`/compatibility`); in that case
+    :exc:`~exceptions.NotImplementedError` will be raised if a `password` parameter is passed to
+    the Credential constructor. Also, if the `password` parameter is passed, normally the
+    `desired_name` parameter must also be provided.
 
     :param desired_name: Optional Name to acquire a credential for. Defaults to the user's
         default identity.
@@ -27,14 +35,22 @@ class Credential(object):
     :type desired_mechs: :class:`~gssapi.oids.OIDSet`
     :param usage: Flag indicating whether to obtain a credential which can be used as an
         initiator credential, an acceptor credential, or both.
-    :type usage: One of :data:`~gssapi.C_INITIATE`, :data:`~gssapi.C_ACCEPT` or :data:`~gssapi.C_BOTH`
+    :type usage: One of :data:`~gssapi.C_INITIATE`, :data:`~gssapi.C_ACCEPT` or
+        :data:`~gssapi.C_BOTH`
+    :param password: Optional password to use. If this parameter is provided, the library will
+        attempt to acquire a new credential using the given password. Otherwise, a reference to an
+        existing credential will be acquired.
+    :type password: bytes
     :returns: a :class:`Credential` object referring to the requested credential.
     :raises: :exc:`~gssapi.error.GSSException` if there is an error acquiring a reference to the
         credential.
+
+        :exc:`~exceptions.NotImplementedError` if a password is provided but the underlying GSSAPI
+        implementation does not support acquiring credentials with a password.
     """
 
     def __init__(self, desired_name=C.GSS_C_NO_NAME, lifetime=C.GSS_C_INDEFINITE,
-                 desired_mechs=C.GSS_C_NO_OID_SET, usage=C.GSS_C_BOTH):
+                 desired_mechs=C.GSS_C_NO_OID_SET, usage=C.GSS_C_BOTH, password=None):
         super(Credential, self).__init__()
 
         self._mechs = None
@@ -44,6 +60,10 @@ class Credential(object):
             return
         else:
             self._cred = ffi.new('gss_cred_id_t[1]')
+
+        if password is not None and not hasattr(C, 'gss_acquire_cred_with_password'):
+            raise NotImplementedError("The GSSAPI implementation does not support "
+                                      "gss_acquire_cred_with_password")
 
         minor_status = ffi.new('OM_uint32[1]')
 
@@ -68,16 +88,41 @@ class Credential(object):
         actual_mechs = ffi.new('gss_OID_set[1]')
         time_rec = ffi.new('OM_uint32[1]')
 
-        retval = C.gss_acquire_cred(
-            minor_status,
-            desired_name,
-            ffi.cast('OM_uint32', lifetime),
-            desired_mechs,
-            ffi.cast('gss_cred_usage_t', usage),
-            self._cred,
-            actual_mechs,
-            time_rec
-        )
+        if password is not None:
+            if isinstance(password, bytes):
+                pw_bytes = password
+            elif isinstance(password, six.string_types):
+                pw_bytes = password.encode()
+            else:
+                raise TypeError("password must be a string, not {0}".format(type(password)))
+
+            pw_buffer = ffi.new('gss_buffer_desc[1]')
+            pw_buffer[0].length = len(pw_bytes)
+            c_str_pw = ffi.new('char[]', pw_bytes)
+            pw_buffer[0].value = c_str_pw
+
+            retval = C.gss_acquire_cred_with_password(
+                minor_status,
+                desired_name,
+                pw_buffer,
+                ffi.cast('OM_uint32', lifetime),
+                desired_mechs,
+                ffi.cast('gss_cred_usage_t', usage),
+                self._cred,
+                actual_mechs,
+                time_rec
+            )
+        else:
+            retval = C.gss_acquire_cred(
+                minor_status,
+                desired_name,
+                ffi.cast('OM_uint32', lifetime),
+                desired_mechs,
+                ffi.cast('gss_cred_usage_t', usage),
+                self._cred,
+                actual_mechs,
+                time_rec
+            )
         self._cred = ffi.gc(self._cred, _release_gss_cred_id_t)
 
         if GSS_ERROR(retval):
