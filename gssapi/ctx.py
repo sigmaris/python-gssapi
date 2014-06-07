@@ -218,7 +218,7 @@ class Context(object):
         :returns: ``qop_state`` if `supplementary` is False, or ``(qop_state,
             supplementary_info)`` if `supplementary` is True.
         :raises: :exc:`~gssapi.error.GSSException` if :attr:`integrity_negotiated` is false, or
-            :exc:`~gssapi.GSSCException` if the verification fails indicating the message was
+            :exc:`~gssapi.error.GSSCException` if the verification fails indicating the message was
             modified.
         """
         if not (self.flags & C.GSS_C_INTEG_FLAG):

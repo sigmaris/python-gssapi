@@ -66,7 +66,7 @@ along with that message to the other peer and verified at the other end. If the 
 MIC) have been modified in transit, the verification will fail.
 
 In order to use integrity protection, the initiator should include :const:`gssapi.C_INTEG_FLAG` in
-the ``req_flags`` parameter to :class:`~gssapi.ctx.InitContext`:
+the `req_flags` parameter to :class:`~gssapi.ctx.InitContext`:
 
 .. code-block:: python
 
@@ -116,11 +116,11 @@ Confidentiality and integrity protection together are provided by the
 :class:`~gssapi.ctx.Context`. :meth:`~gssapi.ctx.Context.wrap` takes a message and returns an
 (optionally) encrypted token containing the message and a MIC. The token can then be passed to
 :meth:`~gssapi.ctx.Context.unwrap` by the peer, to verify the MIC and obtain the original message.
-Note the ``conf_req`` parameter to :meth:`~gssapi.ctx.Context.wrap` - if this is False, no
+Note the `conf_req` parameter to :meth:`~gssapi.ctx.Context.wrap` - if this is False, no
 encryption is performed, but if it is True (the default) the wrapped message is encrypted.
 
 In order to use confidentiality and integrity protection, the initiator should include
-:const:`gssapi.C_INTEG_FLAG` and :const:`gssapi.C_CONF_FLAG` in the ``req_flags`` parameter to
+:const:`gssapi.C_INTEG_FLAG` and :const:`gssapi.C_CONF_FLAG` in the `req_flags` parameter to
 :class:`~gssapi.ctx.InitContext`:
 
 .. code-block:: python
