@@ -61,8 +61,9 @@ class Name(object):
             c_str_name = ffi.new('char[]', name)
             name_buffer[0].value = c_str_name
         elif isinstance(name, six.string_types):
-            name_buffer[0].length = len(name)
-            c_str_name = ffi.new('char[]', name.encode())
+            name_bytes = name.encode()
+            name_buffer[0].length = len(name_bytes)
+            c_str_name = ffi.new('char[]', name_bytes)
             name_buffer[0].value = c_str_name
         elif isinstance(name, six.integer_types):
             c_name = ffi.new('uid_t[1]', (name,))
