@@ -12,6 +12,16 @@ class defaults {
 			require => Package['python3-setuptools'],
 			creates => '/usr/local/bin/pip3',
 			path => "/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin";
+		'pypy /python-gssapi/gssapi_ez_setup.py':
+			# there's no pypy-setuptools Debian package so use our ez_setup script
+			require => Package['pypy'],
+			creates => '/usr/local/lib/pypy2.7/dist-packages/setuptools.pth',
+			notify => Exec['pypy -m easy_install pip'],
+			path => "/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin";
+		'pypy -m easy_install pip':
+			require => Exec['pypy /python-gssapi/gssapi_ez_setup.py'],
+			refreshonly => true,
+			path => "/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin";
 	}
 
 	Exec["apt-get update"] -> Package <| |>

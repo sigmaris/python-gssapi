@@ -1,4 +1,5 @@
 import base64
+import platform
 import sys
 
 import six
@@ -200,7 +201,11 @@ class GSSAPIHandler(socketserver.BaseRequestHandler):
 
 
 if __name__ == '__main__':
-    server = socketserver.ThreadingTCPServer(('', 10100 + sys.version_info[0]), GSSAPIHandler)
+    if platform.python_implementation().lower() == 'pypy':
+        base_port = 10200
+    else:
+        base_port = 10100
+    server = socketserver.ThreadingTCPServer(('', base_port + sys.version_info[0]), GSSAPIHandler)
     print("Starting test server...")
     server.serve_forever()
     print("Test server shutdown.")

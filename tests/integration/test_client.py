@@ -1,5 +1,6 @@
 import base64
 import logging
+import platform
 import socket
 import sys
 import unittest
@@ -27,7 +28,11 @@ class ClientIntegrationTest(unittest.TestCase):
     @classmethod
     def _connect(cls):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(("server.pythongssapi.test", 10100 + sys.version_info[0]))
+        if platform.python_implementation().lower() == 'pypy':
+            base_port = 10200
+        else:
+            base_port = 10100
+        s.connect(("server.pythongssapi.test", base_port + sys.version_info[0]))
         sockfile = s.makefile('rwb')
         return s, sockfile
 
