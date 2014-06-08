@@ -1,4 +1,6 @@
 class defaults {
+	include apt
+
 	exec {
 		"apt-get update":
 			path => "/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin";
@@ -13,6 +15,8 @@ class defaults {
 	}
 
 	Exec["apt-get update"] -> Package <| |>
+
+	apt::ppa { 'ppa:pypy/ppa': }
 
 	package {
 		"krb5-user":
@@ -35,6 +39,9 @@ class defaults {
 			ensure => installed;
 		"python3-setuptools":
 			ensure => installed;
+		"pypy":
+			ensure => installed,
+			require => Apt::Ppa['ppa:pypy/ppa'];
 	}
 
 	file {
