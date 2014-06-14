@@ -11,13 +11,13 @@ if __name__ == '__main__':
     subprocess.check_call(('vagrant', 'up'))
 
     pip_install_procs = [subprocess_on_vm(vm, ' && '.join((
+        'sudo python2 -m pip install -r /python-gssapi/test_requirements.txt',
+        'sudo pypy -m pip install -r /python-gssapi/test_requirements.txt',
+        'sudo python3 -m pip install -r /python-gssapi/test_requirements.txt',
         'cd /python-gssapi',
-        'sudo python2 -m pip install -r test_requirements.txt',
-        'sudo pypy -m pip install -r test_requirements.txt',
-        'sudo python3 -m pip install -r test_requirements.txt',
-        'python2 setup.py develop --user',
-        'pypy setup.py develop --user',
-        'python3 setup.py develop --user',
+        'sudo python2 setup.py install',
+        'sudo pypy setup.py install',
+        'sudo python3 setup.py install',
     ))) for vm in ('server', 'client')]
 
     [process.wait() for process in pip_install_procs]

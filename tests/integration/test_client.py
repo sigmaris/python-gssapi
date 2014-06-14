@@ -79,7 +79,7 @@ class ClientIntegrationTest(unittest.TestCase):
         ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE))
         self._handshake(self.sockfile, ctx)
         self._writeline(b'!LIFETIME')
-        self.assertLess(abs(int(self.sockfile.readline().strip()) - ctx.lifetime), 5)
+        self.assertLess(abs(int(self.sockfile.readline().strip()) - ctx.lifetime), 10)
 
     def test_wrapping(self):
         ctx = InitContext(
@@ -131,7 +131,7 @@ class ClientIntegrationTest(unittest.TestCase):
         self._writeline(b'!DELEGTEST')
         self.assertEqual(self.sockfile.readline().strip(), b'!OK')
         self.assertEqual(self.sockfile.readline().strip(), b'testuser@PYTHONGSSAPI.TEST')
-        self.assertLess(abs(int(self.sockfile.readline().strip()) - cred.lifetime), 5)
+        self.assertLess(abs(int(self.sockfile.readline().strip()) - cred.lifetime), 10)
 
     def test_no_deleg_cred(self):
         ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE))
