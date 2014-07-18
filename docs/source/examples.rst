@@ -16,7 +16,7 @@ obtained initial credentials (a ticket-granting ticket) before running this:
     # Create a Name identifying the target service
     service_name = gssapi.Name('demo@example.org', gssapi.C_NT_HOSTBASED_SERVICE)
     # Create an InitContext targeting the demo service
-    ctx = gssapi.InitContext(self.service_name)
+    ctx = gssapi.InitContext(service_name)
 
     # Loop sending tokens to, and receiving tokens from, the server
     # until the context is established
@@ -71,7 +71,7 @@ the `req_flags` parameter to :class:`~gssapi.ctx.InitContext`:
 .. code-block:: python
 
     service_name = gssapi.Name('demo@example.org', gssapi.C_NT_HOSTBASED_SERVICE)
-    ctx = gssapi.InitContext(self.service_name, req_flags=(gssapi.C_INTEG_FLAG,))
+    ctx = gssapi.InitContext(service_name, req_flags=(gssapi.C_INTEG_FLAG,))
 
 Then, after the context has been established, both the initiator and acceptor should check that
 integrity protection has been negotiated successfully. If it can't be negotiated, the
@@ -126,7 +126,7 @@ In order to use confidentiality and integrity protection, the initiator should i
 .. code-block:: python
 
     target_name = gssapi.Name('demo@example.org', gssapi.C_NT_HOSTBASED_SERVICE)
-    ctx = gssapi.InitContext(self.target_name, req_flags=(gssapi.C_INTEG_FLAG, gssapi.C_CONF_FLAG))
+    ctx = gssapi.InitContext(target_name, req_flags=(gssapi.C_INTEG_FLAG, gssapi.C_CONF_FLAG))
 
 Then, after the context has been established, both the initiator and acceptor should check that
 confidentiality and integrity protection have been negotiated successfully. If it can't be
