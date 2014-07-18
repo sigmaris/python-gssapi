@@ -24,6 +24,18 @@ OM_uint32 gss_acquire_cred_with_password(
   gss_OID_set        *actual_mechs,
   OM_uint32          *time_rec);
 ''',
+'''
+OM_uint32 gss_export_cred(
+  OM_uint32 *minor_status,
+  gss_cred_id_t cred_handle,
+  gss_buffer_t token);
+''',
+'''
+OM_uint32 gss_import_cred(
+  OM_uint32 *minor_status,
+  gss_buffer_t token,
+  gss_cred_id_t *cred_handle);
+''',
 )
 _OPTIONAL_DEFINES = ('GSS_C_DELEG_POLICY_FLAG', 'GSS_C_AF_INET6')
 

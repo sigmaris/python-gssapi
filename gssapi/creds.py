@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import six
 
-from .bindings import C, ffi, GSS_ERROR
+from .bindings import C, ffi, GSS_ERROR, _buf_to_str
 from .error import _exception_for_status
 from .names import Name
 from .oids import OIDSet
@@ -204,3 +204,66 @@ class Credential(object):
             usage[0] if get_usage else None,
             mechsobj if get_mechs else None
         )
+
+    def export(self):
+        """
+        Serializes this credential into a byte string, which can be passed to :meth:`imprt` in
+        another process in order to deserialize the byte string back into a credential. Exporting
+        a credential does not destroy it.
+
+        :returns: The serialized token representation of this credential.
+        :rtype: bytes
+        :raises: :exc:`~gssapi.error.GSSException` if there is a problem with exporting the
+            credential. :exc:`NotImplementedError` if the underlying GSSAPI implementation does not
+            support the ``gss_export_cred`` C function.
+        """
+        if not hasattr(C, 'gss_export_cred'):
+            raise NotImplementedError("The GSSAPI implementation does not support gss_export_cred")
+
+        minor_status = ffi.new('OM_uint32[1]')
+        output_buffer = ffi.new('gss_buffer_desc[1]')
+        retval = C.gss_export_cred(minor_status, self._cred[0], output_buffer)
+        try:
+            if GSS_ERROR(retval):
+                raise _exception_for_status(retval, minor_status[0])
+
+            return _buf_to_str(output_buffer[0])
+        finally:
+            if output_buffer[0].length != 0:
+                C.gss_release_buffer(minor_status, output_buffer)
+
+    @classmethod
+    def imprt(cls, token):
+        """
+        Deserializes a byte string token into a :class:`Credential` object. The token must have
+        previously been exported by the same GSSAPI implementation as is being used to import it.
+
+        :param token: A token previously obtained from the :meth:`export` of another
+            :class:`Credential` object.
+        :type token: bytes
+        :returns: A :class:`Credential` object constructed from the token.
+        :raises: :exc:`~gssapi.error.GSSException` if there is a problem with importing the
+            credential. :exc:`NotImplementedError` if the underlying GSSAPI implementation does not
+            support the ``gss_import_cred`` C function.
+        """
+        if not hasattr(C, 'gss_import_cred'):
+            raise NotImplementedError("The GSSAPI implementation does not support gss_import_cred")
+
+        minor_status = ffi.new('OM_uint32[1]')
+
+        token_buffer = ffi.new('gss_buffer_desc[1]')
+        token_buffer[0].length = len(token)
+        c_str_token = ffi.new('char[]', token)
+        token_buffer[0].value = c_str_token
+
+        imported_cred = ffi.new('gss_cred_id_t[1]')
+
+        retval = C.gss_import_cred(minor_status, token_buffer, imported_cred)
+        try:
+            if GSS_ERROR(retval):
+                raise _exception_for_status(retval, minor_status[0])
+
+            return cls(imported_cred)
+        except:
+            _release_gss_cred_id_t(imported_cred)
+            raise
