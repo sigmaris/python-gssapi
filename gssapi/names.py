@@ -178,12 +178,12 @@ class MechName(Name):
     :attr:`~gssapi.ctx.AcceptContext.peer_name` property of an :class:`~gssapi.ctx.AcceptContext`.
 
     Don't construct instances of this class directly; use
-    :meth:`~gssapi.names.Name.canonicalize` on a :class:`Name` to create a `MechName`.
+    :meth:`~gssapi.names.Name.canonicalize` on a :class:`Name` to create a :class:`MechName`.
     """
 
     def __init__(self, name, mech_type):
         """Don't construct instances of this class directly; This object will acquire
-        ownership of 'name', and release the associated storage when it is deleted."""
+        ownership of `name`, and release the associated storage when it is deleted."""
         if isinstance(name, ffi.CData) and ffi.typeof(name) == ffi.typeof('gss_name_t[1]'):
             self._name = ffi.gc(name, _release_gss_name_t)
         else:
