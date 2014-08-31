@@ -214,7 +214,9 @@ class Credential(object):
         :returns: The serialized token representation of this credential.
         :rtype: bytes
         :raises: :exc:`~gssapi.error.GSSException` if there is a problem with exporting the
-            credential. :exc:`NotImplementedError` if the underlying GSSAPI implementation does not
+            credential.
+
+            :exc:`NotImplementedError` if the underlying GSSAPI implementation does not
             support the ``gss_export_cred`` C function.
         """
         if not hasattr(C, 'gss_export_cred'):
@@ -243,7 +245,9 @@ class Credential(object):
         :type token: bytes
         :returns: A :class:`Credential` object constructed from the token.
         :raises: :exc:`~gssapi.error.GSSException` if there is a problem with importing the
-            credential. :exc:`NotImplementedError` if the underlying GSSAPI implementation does not
+            credential.
+
+            :exc:`NotImplementedError` if the underlying GSSAPI implementation does not
             support the ``gss_import_cred`` C function.
         """
         if not hasattr(C, 'gss_import_cred'):
