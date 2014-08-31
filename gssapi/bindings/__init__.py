@@ -6,11 +6,26 @@ import json
 import os.path
 import subprocess
 
-from cffi import FFI, VerificationError
+from cffi import CDefError, FFI, VerificationError
 from pkg_resources import resource_string, resource_exists, resource_filename
 import six
 
 
+_OPTIONAL_TYPES = (
+'''
+typedef struct gss_key_value_element_struct {
+  const char *key;
+  const char *value;
+  ...;
+} gss_key_value_element_desc;
+
+typedef struct gss_key_value_set_struct {
+  OM_uint32 count;
+  gss_key_value_element_desc *elements;
+  ...;
+} gss_key_value_set_desc, *gss_const_key_value_set_t;
+''',
+)
 _OPTIONAL_FUNCTIONS = (
 '''
 OM_uint32 gss_acquire_cred_with_password(
@@ -36,15 +51,67 @@ OM_uint32 gss_import_cred(
   gss_buffer_t token,
   gss_cred_id_t *cred_handle);
 ''',
+'''
+OM_uint32 gss_store_cred(
+  OM_uint32         *minor_status,
+  gss_cred_id_t     input_cred_handle,
+  gss_cred_usage_t  cred_usage,
+  const gss_OID     desired_mech,
+  OM_uint32         overwrite_cred,
+  OM_uint32         default_cred,
+  gss_OID_set       *elements_stored,
+  gss_cred_usage_t  *cred_usage_stored);
+''',
+'''
+OM_uint32 gss_acquire_cred_from(
+  OM_uint32 *minor_status,
+  gss_name_t desired_name,
+  OM_uint32 time_req,
+  gss_OID_set desired_mechs,
+  gss_cred_usage_t cred_usage,
+  gss_const_key_value_set_t cred_store,
+  gss_cred_id_t *output_cred_handle,
+  gss_OID_set *actual_mechs,
+  OM_uint32 *time_rec);
+''',
+'''
+OM_uint32 gss_add_cred_from(
+  OM_uint32 *minor_status,
+  gss_cred_id_t input_cred_handle,
+  gss_name_t desired_name,
+  gss_OID desired_mech,
+  gss_cred_usage_t cred_usage,
+  OM_uint32 initiator_time_req,
+  OM_uint32 acceptor_time_req,
+  gss_const_key_value_set_t cred_store,
+  gss_cred_id_t *output_cred_handle,
+  gss_OID_set *actual_mechs,
+  OM_uint32 *initiator_time_rec,
+  OM_uint32 *acceptor_time_rec);
+''',
+'''
+OM_uint32 gss_store_cred_into(
+  OM_uint32 *minor_status,
+  gss_cred_id_t input_cred_handle,
+  gss_cred_usage_t input_usage,
+  gss_OID desired_mech,
+  OM_uint32 overwrite_cred,
+  OM_uint32 default_cred,
+  gss_const_key_value_set_t cred_store,
+  gss_OID_set *elements_stored,
+  gss_cred_usage_t *cred_usage_stored);
+''',
 )
 _OPTIONAL_DEFINES = ('GSS_C_DELEG_POLICY_FLAG', 'GSS_C_AF_INET6')
 
 
 def _detect_verify_args():
     source = '#include <gssapi/gssapi.h>'
+    check_gssapi_ext = True
     kwargs = defaultdict(list)
     if os.path.isdir('/System/Library/Frameworks/GSS.framework'):
         # Build using GSS.framework on Mac OS X 10.7+
+        check_gssapi_ext = False
         source = '#include <GSS/GSS.h>'
         kwargs['extra_compile_args'].extend(['-framework', 'GSS', '-Wno-error=unused-command-line-argument-hard-error-in-future'])
         kwargs['extra_link_args'].extend(['-framework', 'GSS'])
@@ -78,15 +145,21 @@ def _detect_verify_args():
 
     final_kwargs = dict(kwargs)
     final_kwargs['ext_package'] = 'gssapi.bindings'
+
+    # Check if gssapi/gssapi_ext.h is available (MIT)
+    with_gssapi_ext = '\n'.join([source, '#include <gssapi/gssapi_ext.h>'])
+    if check_gssapi_ext and _is_verifiable('', [with_gssapi_ext], final_kwargs):
+        source = with_gssapi_ext
+
     return source, final_kwargs
 
 
 def _is_verifiable(cdef, verify_args, verify_kwargs):
     ffi = FFI()
-    ffi.cdef(cdef)
     try:
+        ffi.cdef(cdef)
         ffi.verify(*verify_args, **verify_kwargs)
-    except VerificationError:
+    except (VerificationError, CDefError):
         return False
     else:
         return True
@@ -109,6 +182,7 @@ def _is_pointer_sized(typedef, verify_args, verify_kwargs):
     except VerificationError:
         # if the above fails to compile, 'typedef' is not a pointer type
         return False
+
 
 def _guess_type(typedef, verify_args, verify_kwargs, assume_pointer=True):
 
@@ -217,6 +291,10 @@ def _read_header():
         generated_cdefs += "\n"
         generated_cdefs += cdefs
         generated_cdefs += "\n\n"
+        # Now add any optional types which must come after main cdefs
+        for t in _OPTIONAL_TYPES:
+            if _is_verifiable('\n'.join([generated_cdefs, t]), [source], kwargs):
+                generated_cdefs += t
         # Now add any optional functions which must come after main cdefs
         for func in _OPTIONAL_FUNCTIONS:
             test_cdefs = generated_cdefs + func
