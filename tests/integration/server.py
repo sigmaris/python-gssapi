@@ -11,6 +11,11 @@ else:
 from gssapi import AcceptContext, S_DUPLICATE_TOKEN, S_GAP_TOKEN, S_UNSEQ_TOKEN
 
 
+class AddressReusingServer(socketserver.ThreadingTCPServer):
+
+    allow_reuse_address = True
+
+
 class GSSAPIHandler(socketserver.BaseRequestHandler):
 
     def _writeline(self, line):
@@ -205,7 +210,7 @@ if __name__ == '__main__':
         base_port = 10200
     else:
         base_port = 10100
-    server = socketserver.ThreadingTCPServer(('', base_port + sys.version_info[0]), GSSAPIHandler)
+    server = AddressReusingServer(('', base_port + sys.version_info[0]), GSSAPIHandler)
     print("Starting test server...")
     server.serve_forever()
     print("Test server shutdown.")
