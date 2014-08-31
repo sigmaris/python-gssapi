@@ -20,17 +20,13 @@ if __name__ == '__main__':
 
     subprocess.check_call(('vagrant', 'up'))
 
-    pip_install_procs = [subprocess_on_vm(vm, ' && '.join((
-        'sudo python2 -m pip install -r /python-gssapi/test_requirements.txt',
-        'sudo pypy -m pip install -r /python-gssapi/test_requirements.txt',
-        'sudo python3 -m pip install -r /python-gssapi/test_requirements.txt',
-        'cd /python-gssapi',
-        'sudo python2 setup.py install',
-        'sudo pypy setup.py install',
-        'sudo python3 setup.py install',
-    ))) for vm in ('server', 'client')]
-
-    [process.wait() for process in pip_install_procs]
+    for vm in ('server', 'client'):
+        subprocess_on_vm(vm, 'sudo python2 -m pip install -r /python-gssapi/test_requirements.txt').wait()
+        subprocess_on_vm(vm, 'sudo pypy -m pip install -r /python-gssapi/test_requirements.txt').wait()
+        subprocess_on_vm(vm, 'sudo python3 -m pip install -r /python-gssapi/test_requirements.txt').wait()
+        subprocess_on_vm(vm, 'cd /python-gssapi && sudo python2 setup.py install').wait()
+        subprocess_on_vm(vm, 'cd /python-gssapi && sudo pypy setup.py install').wait()
+        subprocess_on_vm(vm, 'cd /python-gssapi && sudo python3 setup.py install').wait()
 
     server_procs = (
         subprocess_on_vm('server', 'cd /python-gssapi && sudo python2 tests/integration/server.py'),
@@ -55,7 +51,7 @@ if __name__ == '__main__':
         subprocess_on_vm('client', ' && '.join((
             'echo "userpassword" | kinit -f testuser',
             'cd /python-gssapi',
-            'python3 /usr/local/bin/nosetests-3.2 --with-xunit --xunit-file py3tests.xml tests.integration.test_client:ClientIntegrationTest'
+            'python3 /usr/local/bin/nosetests-3.4 --with-xunit --xunit-file py3tests.xml tests.integration.test_client:ClientIntegrationTest'
         ))),
     )
 
