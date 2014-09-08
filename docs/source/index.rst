@@ -40,6 +40,7 @@ Contents
    compatibility
    contributors
    api/gssapi
+   changelog
    todo
 
 
