@@ -40,7 +40,7 @@ def _make_kv_set(cred_store):
     cred_store_kv_set = ffi.new('gss_key_value_set_desc[1]')
     cred_store_kv_set[0].count = kv_count
     cred_store_kv_set[0].elements = kv_array
-    return c_strings, cred_store_kv_set
+    return c_strings, kv_array, cred_store_kv_set
 
 
 class Credential(object):
@@ -157,7 +157,7 @@ class Credential(object):
                 time_rec
             )
         elif cred_store is not None:
-            c_strings, cred_store_kv_set = _make_kv_set(cred_store)
+            c_strings, elements, cred_store_kv_set = _make_kv_set(cred_store)
 
             retval = C.gss_acquire_cred_from(
                 minor_status,
@@ -398,7 +398,8 @@ class Credential(object):
             if not hasattr(C, 'gss_store_cred_into'):
                 raise NotImplementedError("The GSSAPI implementation does not support "
                                           "gss_store_cred_into")
-            c_strings, cred_store_kv_set = _make_kv_set(cred_store)
+
+            c_strings, elements, cred_store_kv_set = _make_kv_set(cred_store)
 
             retval = C.gss_store_cred_into(
                 minor_status,
