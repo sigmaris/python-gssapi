@@ -20,8 +20,20 @@ def _make_kv_set(cred_store):
     kv_array = ffi.new('gss_key_value_element_desc[]', kv_count)
     c_strings = []
     for index, (key, value) in enumerate(cred_store):
-        key_c_str = ffi.new('char[]', key)
-        val_c_str = ffi.new('char[]', value)
+        if isinstance(key, bytes):
+            key_c_str = ffi.new('char[]', key)
+        elif isinstance(key, six.string_types):
+            key_c_str = ffi.new('char[]', key.encode())
+        else:
+            raise TypeError("Expected a string or bytes, got {0}".format(type(key)))
+
+        if isinstance(value, bytes):
+            val_c_str = ffi.new('char[]', value)
+        elif isinstance(value, six.string_types):
+            val_c_str = ffi.new('char[]', value.encode())
+        else:
+            raise TypeError("Expected a string or bytes, got {0}".format(type(value)))
+
         c_strings.extend([key_c_str, val_c_str])  # keep references to memory
         kv_array[index].key = key_c_str
         kv_array[index].value = val_c_str
