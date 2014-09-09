@@ -45,7 +45,7 @@ class OID(object):
 
     def __init__(self, oid, parent_set=None):
         super(OID, self).__init__()
-        self._oid = oid
+        self._oid = oid  # _oid contains a gss_OID_desc, NOT a gss_OID
         self._parent = parent_set
 
     def __ne__(self, other):

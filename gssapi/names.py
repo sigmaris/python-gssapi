@@ -21,6 +21,8 @@ class _NameMeta(type):
             name_type = args[1]
         else:
             name_type = None
+        if isinstance(name_type, OID):
+            name_type = name_type._oid
         if name_type == C.GSS_C_NT_EXPORT_NAME:
             mech_name = MechName(None, C.GSS_C_NO_OID)
             mech_name._import_name(*args, **kwargs)
