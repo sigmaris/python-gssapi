@@ -1,6 +1,7 @@
 import base64
 import platform
 import sys
+import tempfile
 
 import six
 if six.PY3:
@@ -8,7 +9,7 @@ if six.PY3:
 else:
     import SocketServer as socketserver
 
-from gssapi import AcceptContext, S_DUPLICATE_TOKEN, S_GAP_TOKEN, S_UNSEQ_TOKEN
+from gssapi import AcceptContext, Credential, C_INITIATE, S_DUPLICATE_TOKEN, S_GAP_TOKEN, S_UNSEQ_TOKEN
 
 
 class AddressReusingServer(socketserver.ThreadingTCPServer):
@@ -60,6 +61,8 @@ class GSSAPIHandler(socketserver.BaseRequestHandler):
             self._mic_test(ctx)
         elif client_command == b'!DELEGTEST':
             self._delegated_cred_test(ctx)
+        elif client_command == b'!DELEGSTORE':
+            self._delegated_cred_store_test(ctx)
         elif client_command == b'!MECHTYPE':
             self._writeline(six.text_type(ctx.mech_type).encode('utf-8'))
         elif client_command == b'!REPLAYTEST':
@@ -111,6 +114,19 @@ class GSSAPIHandler(socketserver.BaseRequestHandler):
             self._writeline(b'!OK')
             self._writeline(six.text_type(ctx.delegated_cred.name).encode('utf-8'))
             self._writeline(six.text_type(ctx.delegated_cred.lifetime).encode('utf-8'))
+        else:
+            self._writeline(b'!NOCRED')
+
+    def _delegated_cred_store_test(self, ctx):
+        if ctx.delegated_cred:
+            # Create the default ccache as a side-effect
+            str(Credential(usage=C_INITIATE, cred_store={'client_keytab':'/etc/krb5.keytab'}).name)
+            # Store delegated cred in default ccache
+            ctx.delegated_cred.store(default=True, overwrite=True)
+            # Store again, in non-default ccache
+            ctx.delegated_cred.store(default=True, overwrite=True,
+                                     cred_store={'ccache': 'FILE:{0}'.format(tempfile.mktemp())})
+            self._writeline(b'!OK')
         else:
             self._writeline(b'!NOCRED')
 

@@ -7,7 +7,7 @@ import unittest
 
 from gssapi import (InitContext, Name, Credential, C_NT_HOSTBASED_SERVICE, C_CONF_FLAG,
                     C_INTEG_FLAG, C_DELEG_FLAG, C_REPLAY_FLAG, C_SEQUENCE_FLAG, C_INITIATE,
-                    S_DUPLICATE_TOKEN, S_GAP_TOKEN, S_UNSEQ_TOKEN)
+                    S_DUPLICATE_TOKEN, S_GAP_TOKEN, S_UNSEQ_TOKEN, GSSCException)
 
 logging.basicConfig()
 
@@ -132,6 +132,17 @@ class ClientIntegrationTest(unittest.TestCase):
         self.assertEqual(self.sockfile.readline().strip(), b'!OK')
         self.assertEqual(self.sockfile.readline().strip(), b'testuser@PYTHONGSSAPI.TEST')
         self.assertLess(abs(int(self.sockfile.readline().strip()) - cred.lifetime), 10)
+
+    def test_store_deleg_cred(self):
+        cred = Credential(usage=C_INITIATE)
+        ctx = InitContext(
+            Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE),
+            cred,
+            req_flags=(C_DELEG_FLAG,)
+        )
+        self._handshake(self.sockfile, ctx)
+        self._writeline(b'!DELEGSTORE')
+        self.assertEqual(self.sockfile.readline().strip(), b'!OK')
 
     def test_no_deleg_cred(self):
         ctx = InitContext(Name("host@server.pythongssapi.test", C_NT_HOSTBASED_SERVICE))
