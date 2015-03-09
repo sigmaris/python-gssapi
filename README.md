@@ -1,6 +1,13 @@
 python-gssapi
 =============
 
+Note
+----
+There is a newer project which has superseded this one,
+[https://github.com/pythongssapi/python-gssapi](https://github.com/pythongssapi/python-gssapi).
+Please use that package if suitable for your needs, as this project is unlikely to be
+developed further.
+
 Attempt at an object-oriented interface to GSSAPI for Python.
 This project is licensed under the terms of the MIT license (see LICENSE.txt).
 
