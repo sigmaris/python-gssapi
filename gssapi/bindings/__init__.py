@@ -246,7 +246,7 @@ def _guess_type(typedef, verify_args, verify_kwargs, assume_pointer=True):
 
 def _kwargs_decode(input):
     if isinstance(input, dict):
-        return {_kwargs_decode(key): _kwargs_decode(value) for key, value in input.items()}
+        return dict((_kwargs_decode(key), _kwargs_decode(value)) for (key, value) in input.items())
     elif isinstance(input, list):
         return [_kwargs_decode(element) for element in input]
     elif six.PY2 and isinstance(input, unicode):
