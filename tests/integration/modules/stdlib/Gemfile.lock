@@ -84,7 +84,7 @@ GEM
     metaclass (0.0.4)
     method_source (0.8.2)
     mime-types (1.25.1)
-    minitar (0.5.4)
+    minitar (0.8)
     mocha (1.1.0)
       metaclass (~> 0.0.1)
     multi_json (1.10.1)
@@ -155,7 +155,7 @@ PLATFORMS
 
 DEPENDENCIES
   beaker
-  beaker-rspec (= 2.2.4)
+  beaker-rspec
   pry
   puppet
   puppet-lint
