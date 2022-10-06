@@ -2,7 +2,8 @@ GEM
   remote: https://rubygems.org/
   specs:
     CFPropertyList (2.2.8)
-    addressable (2.3.6)
+    addressable (2.8.1)
+      public_suffix (>= 2.0.2, < 6.0)
     archive-tar-minitar (0.5.2)
     autoparse (0.3.3)
       addressable (>= 2.3.1)
@@ -97,6 +98,7 @@ GEM
       coderay (~> 1.0)
       method_source (~> 0.8)
       slop (~> 3.4)
+    public_suffix (5.0.0)
     puppet (3.6.1)
       facter (> 1.6, < 3)
       hiera (~> 1.0)
@@ -155,7 +157,7 @@ PLATFORMS
 
 DEPENDENCIES
   beaker
-  beaker-rspec (= 2.2.4)
+  beaker-rspec
   pry
   puppet
   puppet-lint
